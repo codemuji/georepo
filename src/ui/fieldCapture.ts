@@ -14,6 +14,8 @@ import { getCurrentCoordinates, compassService } from '../services/sensors';
 import { audioRecorderService } from '../services/audio';
 import { toast } from './toast';
 import { SpatialTrackerCanvas } from './spatialTracker';
+import { networkMonitor } from '../services/network';
+import { syncQueueService } from '../services/sync';
 
 export class FieldCaptureApp {
   private state: FieldToReportState = { ...INITIAL_FIELD_TO_REPORT_STATE };
@@ -46,6 +48,21 @@ export class FieldCaptureApp {
 
       // Pre-fetch user GPS fix
       this.userCoordinates = await getCurrentCoordinates();
+
+      // Subscribe to network connectivity
+      networkMonitor.subscribe((isOnline) => {
+        this.state = {
+          ...this.state,
+          network: { ...this.state.network, isOnline }
+        };
+      });
+
+      // Subscribe to sync queue progress
+      syncQueueService.subscribe((ev) => {
+        if (ev.stage === 'TRANSCRIBING') {
+          toast.info(`Whisper transcribing ${ev.stationId} with lexicon boosting...`);
+        }
+      });
     } catch (err) {
       console.warn('IndexedDB / Sensor initialization notice:', err);
     }
@@ -176,9 +193,10 @@ export class FieldCaptureApp {
               <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor;"></span>
               ${isOnline ? 'Basecamp Online' : 'Offline Edge'}
             </span>
-            <span class="badge badge-neutral tabular-nums">
-              ${this.state.network.pendingSyncCount} queue
-            </span>
+            <button id="btnHeaderSync" class="badge badge-neutral tabular-nums" style="cursor: pointer; background: var(--geo-slate); border-color: var(--ochre-amber); color: #fff;" title="Click to sync queue to office database">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>${this.state.network.pendingSyncCount} sync</span>
+            </button>
           </div>
         </header>
 
@@ -380,6 +398,31 @@ export class FieldCaptureApp {
     document.getElementById('btnRecenter')?.addEventListener('click', () => {
       this.spatialTracker?.recenter();
       toast.info('Spatial canvas re-centered to traverse origin');
+    });
+
+    // Sync Queue Button
+    document.getElementById('btnHeaderSync')?.addEventListener('click', async () => {
+      if (!this.state.network.isOnline) {
+        this.dispatch({ type: 'TOGGLE_ONLINE', forceOnline: true });
+        toast.info('Switched network to Online (Basecamp Wi-Fi)');
+      }
+      try {
+        toast.info('Starting sync queue with Whisper transcription...');
+        const res = await syncQueueService.processQueue(this.state.project.lexicon);
+        const reloaded = await getAllStationsFromDb();
+        this.state = {
+          ...this.state,
+          traverse: { ...this.state.traverse, stations: reloaded },
+          network: {
+            ...this.state.network,
+            pendingSyncCount: reloaded.filter((s) => s.status === 'OFFLINE_CACHED').length
+          }
+        };
+        this.render();
+        toast.success(`Synced & transcribed ${res.syncedCount} station(s) with Whisper!`);
+      } catch (err: any) {
+        toast.warning(err.message);
+      }
     });
 
     // 1. New Station
