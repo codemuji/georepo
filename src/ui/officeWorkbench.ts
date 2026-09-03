@@ -5,6 +5,7 @@ import { FieldToReportState, Station } from '../domain/types';
 import { SpatialProjection } from './spatialTracker';
 import { llmExtractionService } from '../services/extraction';
 import { generateGeologicalReportDocx, downloadDocxBlob } from '../services/reportGenerator';
+import { exportProjectArchiveZip, downloadZipBlob } from '../services/archiveExporter';
 import { toast } from './toast';
 
 export interface OfficeWorkbenchOptions {
@@ -95,8 +96,11 @@ export class OfficeWorkbench {
               <option value="CLASSIC_TECHNICAL" ${this.state.project.theme === 'CLASSIC_TECHNICAL' ? 'selected' : ''}>Theme: Classic Technical</option>
               <option value="GEOLOGICAL_SURVEY" ${this.state.project.theme === 'GEOLOGICAL_SURVEY' ? 'selected' : ''}>Theme: Geological Survey</option>
             </select>
-            <button id="btnGenerateReport" class="workbench-btn" style="background: var(--ochre-amber); color: #fff; border: none;" title="Compile verified stations into Word .docx report">
+            <button id="btnGenerateReport" class="workbench-btn" style="background: var(--azurite-blue); color: #fff; border: none;" title="Compile verified stations into Word .docx report">
               📄 Export .docx Report
+            </button>
+            <button id="btnExportZipArchive" class="workbench-btn" style="background: linear-gradient(180deg, #d97706 0%, #b45309 100%); color: #fff; border: 1px solid rgba(251, 191, 36, 0.4);" title="Export complete project archive with .docx report, CSV, GeoJSON and media files">
+              📦 Export Archive (.zip)
             </button>
             <button id="btnSwitchField" class="workbench-btn btn-field-switch">
               📱 Field PWA
@@ -659,6 +663,19 @@ export class OfficeWorkbench {
         toast.success(`Downloaded Microsoft Word report: ${filename}`);
       } catch (err: any) {
         toast.warning('Report generation notice: ' + err.message);
+      }
+    });
+
+    // Export Complete Project Archive (.zip)
+    document.getElementById('btnExportZipArchive')?.addEventListener('click', async () => {
+      try {
+        toast.info('Packaging complete project archive (.zip) with report, CSV, GeoJSON & media...');
+        const zipBlob = await exportProjectArchiveZip(this.state);
+        const filename = `${this.state.project.name.replace(/\s+/g, '_')}_Complete_Archive.zip`;
+        downloadZipBlob(zipBlob, filename);
+        toast.success(`Downloaded complete project archive: ${filename}!`);
+      } catch (err: any) {
+        toast.warning('Archive packaging notice: ' + err.message);
       }
     });
   }

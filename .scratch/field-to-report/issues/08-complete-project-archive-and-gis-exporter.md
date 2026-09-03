@@ -5,13 +5,13 @@ A comprehensive project packaging engine that generates a downloadable `.zip` ar
 
 **Blocked by:** 07: Decorated Word (.docx) Report Generator
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 ## Acceptance Criteria
 
-- [ ] Archive packaging pipeline (`archiver` / `jszip`) triggered upon report compilation.
-- [ ] Exports `stations.csv` containing all station metadata, coordinates, lithology, and structural measurements.
-- [ ] Exports `spatial_data.geojson` with Point features containing orientation attributes (`strike`, `dip`) for immediate import into ArcGIS, QGIS, or Leapfrog Geo.
-- [ ] Preserves all raw audio files in an `audio/` folder named by station ID (e.g. `ST-001_audio.webm`).
-- [ ] Preserves all original high-resolution photos in a `photos/` folder named with station and azimuth metadata.
-- [ ] Single 1-click download producing the complete, verifiable audit bundle.
+- [x] Archive packaging pipeline (`archiver` / `jszip`) triggered upon report compilation.
+- [x] Exports `stations.csv` containing all station metadata, coordinates, lithology, and structural measurements.
+- [x] Exports `spatial_data.geojson` with Point features containing orientation attributes (`strike`, `dip`) for immediate import into ArcGIS, QGIS, or Leapfrog Geo.
+- [x] Preserves all raw audio files in an `audio/` folder named by station ID (e.g. `ST-001_audio.webm`).
+- [x] Preserves all original high-resolution photos in a `photos/` folder named with station and azimuth metadata.
+- [x] Single 1-click download producing the complete, verifiable audit bundle.
