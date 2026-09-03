@@ -14,6 +14,22 @@ export interface ExtractionOptions {
   provider?: 'openrouter' | 'nvidia' | 'local';
 }
 
+export interface RawParsedDomainAttributes {
+  lithology?: string;
+  alteration?: string;
+  mineralization?: string;
+  sampleId?: string;
+  strike?: number;
+  dip?: number;
+  dipDirection?: string;
+  rqd?: string;
+  jointSpacing?: string;
+  weathering?: string;
+  formation?: string;
+  member?: string;
+  contact?: string;
+}
+
 export interface ExtractionResult {
   extracted: ExtractedAttributes;
   confidence: number;
@@ -31,22 +47,31 @@ export class LlmExtractionService {
     lexicon: string[] = [],
     options: ExtractionOptions = {}
   ): Promise<ExtractionResult> {
-    const apiKey = options.apiKey || '';
     const provider = options.provider || 'openrouter';
+    const envApiKey = typeof import.meta !== 'undefined' && import.meta.env
+      ? ((provider === 'nvidia' ? import.meta.env.VITE_NVIDIA_API_KEY : import.meta.env.VITE_OPENROUTER_API_KEY) as string)
+      : '';
+    const apiKey = options.apiKey || envApiKey || '';
+    const extraFlags: string[] = [];
 
     // If an API key is provided, execute external LLM completion (OpenRouter / NVIDIA NIM)
     if (apiKey) {
       try {
         const responseJson = await this.callLlmApi(rawSpeechText, mode, lexicon, apiKey, provider, options);
         return this.validateAndScore(responseJson, mode);
-      } catch (err) {
+      } catch (err: any) {
         console.warn('LLM API call failed, falling back to local domain parser:', err);
+        extraFlags.push(`Remote LLM API notice: ${err?.message || 'Connection failed'}; fell back to rule parser`);
       }
     }
 
     // High-precision local deterministic domain parser
     const parsed = this.parseWithDomainRules(rawSpeechText, mode, lexicon);
-    return this.validateAndScore(parsed, mode);
+    const scored = this.validateAndScore(parsed, mode);
+    if (extraFlags.length > 0) {
+      scored.flags.push(...extraFlags);
+    }
+    return scored;
   }
 
   /**
@@ -161,7 +186,7 @@ JSON schema:
     text: string,
     mode: ProjectMode,
     lexicon: string[] = []
-  ): any {
+  ): RawParsedDomainAttributes {
     const lower = text.toLowerCase();
 
     // 1. Strike and Dip extraction (supports "strike 045 dip 60 SE" or "strike 410" or "045/60 SE")

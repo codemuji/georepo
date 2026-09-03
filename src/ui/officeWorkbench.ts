@@ -2,10 +2,11 @@ import {
   fieldToReportReducer
 } from '../domain/reducer';
 import { FieldToReportState, Station } from '../domain/types';
-import { SpatialProjection } from './spatialTracker';
+import { SpatialProjection, drawStrikeDipSymbol } from './spatialTracker';
 import { llmExtractionService } from '../services/extraction';
 import { generateGeologicalReportDocx, downloadDocxBlob } from '../services/reportGenerator';
 import { exportProjectArchiveZip, downloadZipBlob } from '../services/archiveExporter';
+import { getAudioForStationFromDb, getPhotosForStationFromDb } from '../storage/db';
 import { toast } from './toast';
 
 export interface OfficeWorkbenchOptions {
@@ -223,13 +224,16 @@ export class OfficeWorkbench {
         <!-- Audio Dictation Player -->
         <div class="inspection-card">
           <div class="card-section-label">Field Audio Observation (${audio ? `${audio.durationSec}s` : 'No Audio'})</div>
-          <div class="audio-player-deck">
-            <button id="btnPlayAudio" class="audio-play-btn">
-              ${this.isAudioPlaying ? '⏸ Pause' : '▶ Play Memo'}
-            </button>
-            <div class="audio-waveform-bar">
-              <div class="waveform-line ${this.isAudioPlaying ? 'animating-wave' : ''}"></div>
+          <div class="audio-player-deck" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button id="btnPlayAudio" class="audio-play-btn">
+                ${this.isAudioPlaying ? '⏸ Pause' : '▶ Play Memo'}
+              </button>
+              <div class="audio-waveform-bar" style="flex: 1;">
+                <div class="waveform-line ${this.isAudioPlaying ? 'animating-wave' : ''}"></div>
+              </div>
             </div>
+            <audio id="stationAudioPlayer" controls style="width: 100%; height: 28px; filter: invert(0.8) hue-rotate(180deg); margin-top: 2px;"></audio>
           </div>
           ${audio?.rawSpeechText ? `
             <div class="raw-speech-transcript">
@@ -248,7 +252,7 @@ export class OfficeWorkbench {
             <div class="card-section-label">Outcrop Photo Assets (${photos.length})</div>
             <div class="workbench-photo-gallery">
               ${photos.map((p, idx) => `
-                <div class="workbench-photo-frame">
+                <div class="workbench-photo-frame" data-photo-idx="${idx}">
                   <div class="photo-placeholder-graphic">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -438,31 +442,14 @@ export class OfficeWorkbench {
       // Oriented Strike & Dip symbol
       const strike = (st.extracted as any)?.strike ?? st.azimuth;
       if (typeof strike === 'number') {
-        const rad = (strike * Math.PI) / 180;
-        const strikeLen = isActive ? 18 : 14;
-
-        // Strike bar
-        const x1 = pt.x - Math.sin(rad) * strikeLen;
-        const y1 = pt.y + Math.cos(rad) * strikeLen;
-        const x2 = pt.x + Math.sin(rad) * strikeLen;
-        const y2 = pt.y - Math.cos(rad) * strikeLen;
-
-        ctx.strokeStyle = isFlagged ? '#ef4444' : (isApproved ? '#22c55e' : '#eab308');
-        ctx.lineWidth = isActive ? 2.5 : 2;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-
-        // Dip tick
-        const dipRad = rad + Math.PI / 2;
-        const tickLen = 8;
-        const tx = pt.x + Math.sin(dipRad) * tickLen;
-        const ty = pt.y - Math.cos(dipRad) * tickLen;
-        ctx.beginPath();
-        ctx.moveTo(pt.x, pt.y);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
+        const dip = (st.extracted as any)?.dip ?? 45;
+        const color = isFlagged ? '#ef4444' : (isApproved ? '#22c55e' : '#eab308');
+        drawStrikeDipSymbol(ctx, pt.x, pt.y, strike, dip, {
+          color,
+          strikeLength: isActive ? 18 : 14,
+          tickLength: 8,
+          lineWidth: isActive ? 2.5 : 2
+        });
       }
 
       // Station circle
@@ -552,18 +539,79 @@ export class OfficeWorkbench {
       }
     });
 
-    // Audio Play / Pause toggle
-    document.getElementById('btnPlayAudio')?.addEventListener('click', () => {
-      this.isAudioPlaying = !this.isAudioPlaying;
-      this.render();
-      if (this.isAudioPlaying) {
-        toast.info('Playing station field audio memo...');
-        setTimeout(() => {
-          this.isAudioPlaying = false;
-          this.render();
-        }, 3000);
+    // Real HTML5 Audio Player & Waveform Sync
+    const audioEl = document.getElementById('stationAudioPlayer') as HTMLAudioElement;
+    const playBtn = document.getElementById('btnPlayAudio') as HTMLButtonElement;
+    const activeStation = this.state.traverse.stations.find(
+      (s) => s.id === this.state.traverse.activeStationId
+    ) || this.state.traverse.stations[0];
+
+    if (audioEl && activeStation) {
+      if (activeStation.audio?.blobUrl) {
+        audioEl.src = activeStation.audio.blobUrl;
+      } else {
+        getAudioForStationFromDb(activeStation.id).then((rec) => {
+          if (rec?.blob) {
+            audioEl.src = URL.createObjectURL(rec.blob);
+          }
+        }).catch(() => {});
       }
-    });
+
+      audioEl.onplay = () => {
+        this.isAudioPlaying = true;
+        if (playBtn) playBtn.textContent = '⏸ Pause';
+        document.querySelector('.waveform-line')?.classList.add('animating-wave');
+      };
+      audioEl.onpause = () => {
+        this.isAudioPlaying = false;
+        if (playBtn) playBtn.textContent = '▶ Play Memo';
+        document.querySelector('.waveform-line')?.classList.remove('animating-wave');
+      };
+      audioEl.onended = () => {
+        this.isAudioPlaying = false;
+        if (playBtn) playBtn.textContent = '▶ Play Memo';
+        document.querySelector('.waveform-line')?.classList.remove('animating-wave');
+      };
+
+      playBtn?.addEventListener('click', () => {
+        if (audioEl.paused) {
+          audioEl.play().catch(() => {
+            toast.info('Simulating audio memo playback...');
+            this.isAudioPlaying = true;
+            if (playBtn) playBtn.textContent = '⏸ Pause';
+            document.querySelector('.waveform-line')?.classList.add('animating-wave');
+            setTimeout(() => {
+              this.isAudioPlaying = false;
+              if (playBtn) playBtn.textContent = '▶ Play Memo';
+              document.querySelector('.waveform-line')?.classList.remove('animating-wave');
+            }, 3000);
+          });
+        } else {
+          audioEl.pause();
+        }
+      });
+    }
+
+    // Load actual outcrop photos from IndexedDB if available
+    if (activeStation && activeStation.photos.length > 0) {
+      getPhotosForStationFromDb(activeStation.id).then((photoRecords) => {
+        photoRecords.forEach((pr, pIdx) => {
+          const frame = document.querySelector(`.workbench-photo-frame[data-photo-idx="${pIdx}"]`);
+          if (frame && pr.blob) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(pr.blob);
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '6px';
+            const placeholder = frame.querySelector('.photo-placeholder-graphic');
+            if (placeholder) {
+              frame.replaceChild(img, placeholder);
+            }
+          }
+        });
+      }).catch(() => {});
+    }
 
     // Attribute inline form editing
     const form = document.getElementById('attributeEditForm') as HTMLFormElement;

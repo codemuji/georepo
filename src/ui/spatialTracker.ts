@@ -44,6 +44,49 @@ export class SpatialProjection {
   }
 }
 
+export interface StrikeDipSymbolOptions {
+  color?: string;
+  strikeLength?: number;
+  tickLength?: number;
+  lineWidth?: number;
+}
+
+export function drawStrikeDipSymbol(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  strike: number,
+  _dip: number = 45,
+  options: StrikeDipSymbolOptions = {}
+): void {
+  const rad = (strike * Math.PI) / 180;
+  const strikeLen = options.strikeLength ?? 14;
+  const tickLen = options.tickLength ?? 7;
+  const color = options.color ?? '#eab308';
+  const lineWidth = options.lineWidth ?? 2;
+
+  const x1 = x - Math.sin(rad) * strikeLen;
+  const y1 = y + Math.cos(rad) * strikeLen;
+  const x2 = x + Math.sin(rad) * strikeLen;
+  const y2 = y - Math.cos(rad) * strikeLen;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  const dipRad = rad + Math.PI / 2;
+  const tx = x + Math.sin(dipRad) * tickLen;
+  const ty = y - Math.cos(dipRad) * tickLen;
+
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+}
+
 export class SpatialTrackerCanvas {
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -216,30 +259,8 @@ export class SpatialTrackerCanvas {
 
       const strike = (st.extracted as any)?.strike ?? st.azimuth;
       if (typeof strike === 'number') {
-        const rad = (strike * Math.PI) / 180;
-        const strikeLen = 14;
-
-        const x1 = pt.x - Math.sin(rad) * strikeLen;
-        const y1 = pt.y + Math.cos(rad) * strikeLen;
-        const x2 = pt.x + Math.sin(rad) * strikeLen;
-        const y2 = pt.y - Math.cos(rad) * strikeLen;
-
-        this.ctx.strokeStyle = '#eab308';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.moveTo(x1, y1);
-        this.ctx.lineTo(x2, y2);
-        this.ctx.stroke();
-
-        const dipRad = rad + Math.PI / 2;
-        const tickLen = 7;
-        const tx = pt.x + Math.sin(dipRad) * tickLen;
-        const ty = pt.y - Math.cos(dipRad) * tickLen;
-
-        this.ctx.beginPath();
-        this.ctx.moveTo(pt.x, pt.y);
-        this.ctx.lineTo(tx, ty);
-        this.ctx.stroke();
+        const dip = (st.extracted as any)?.dip ?? 45;
+        drawStrikeDipSymbol(this.ctx, pt.x, pt.y, strike, dip);
       }
 
       this.ctx.fillStyle = '#f8fafc';

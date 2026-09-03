@@ -532,15 +532,28 @@ function buildObservationSections(stations: Station[], cfg: ThemeConfig): Paragr
       st.photos.forEach((photo, pIdx) => {
         paragraphs.push(
           new Paragraph({
-            spacing: { before: 100, after: 100 },
+            spacing: { before: 120, after: 40 },
             children: [
               new TextRun({
-                text: `[Photo Plate Figure ${idx + 1}.${pIdx + 1}: ${photo.caption || 'Outcrop observation face'} (Facing ${photo.azimuth || 0}° Azimuth)]`,
+                text: `[ Photo Plate Figure ${idx + 1}.${pIdx + 1}: ${photo.caption || 'Outcrop observation face'} (Facing ${photo.azimuth || 0}° Azimuth) ]`,
                 italics: true,
                 bold: true,
-                size: 18,
-                color: '475569',
+                size: 20,
+                color: cfg.primaryColor,
                 font: cfg.fontFamily
+              })
+            ]
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 20, after: 140 },
+            children: [
+              new TextRun({
+                text: `|◀┈┈┈┈┈┈┈┈┈┈ 10 cm Graphic Scale Bar ┈┈┈┈┈┈┈┈┈┈▶|  (Specimen Scale Reference)`,
+                bold: true,
+                size: 16,
+                color: '64748B',
+                font: 'Consolas'
               })
             ]
           })

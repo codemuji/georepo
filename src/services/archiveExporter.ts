@@ -195,15 +195,26 @@ export async function exportProjectArchiveZip(
     }
 
     // Photo assets
+    let stationPhotosWritten = 0;
     try {
       const photoRecords = await getPhotosForStationFromDb(st.id, options.customDb);
       if (photoRecords && photoRecords.length > 0) {
         photoRecords.forEach((pr, idx) => {
           photosFolder?.file(`${st.id}_photo_${idx + 1}_${pr.azimuth || 0}deg.jpg`, pr.blob);
+          stationPhotosWritten++;
         });
       }
     } catch {
       // Offline fallback
+    }
+
+    if (stationPhotosWritten === 0 && st.photos.length > 0) {
+      st.photos.forEach((p, idx) => {
+        photosFolder?.file(
+          `${st.id}_photo_${idx + 1}_meta.txt`,
+          `Photo Asset: ${p.id}\nStation: ${st.id}\nCaption: ${p.caption || 'Outcrop observation'}\nAzimuth: ${p.azimuth || 0}°\nTimestamp: ${p.timestamp}`
+        );
+      });
     }
   }
 

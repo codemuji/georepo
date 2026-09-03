@@ -34,14 +34,14 @@ export class WhisperTranscriptionService {
     return `Geological field traverse notes. Terminology: ${vocabularyList}. Standard structural readings in Right-Hand Rule strike and dip (e.g. strike 045 dip 60 SE). Sample tags e.g. SMP-101.`;
   }
 
-  /**
-   * Transcribes an audio blob with Whisper API or domain fallback
-   */
   public async transcribe(
     audioBlob: Blob,
     options: TranscriptionOptions = {}
   ): Promise<string> {
-    const apiKey = options.apiKey || '';
+    const envApiKey = typeof import.meta !== 'undefined' && import.meta.env
+      ? (import.meta.env.VITE_OPENAI_API_KEY as string)
+      : '';
+    const apiKey = options.apiKey || envApiKey || '';
     const endpoint = options.endpoint || 'https://api.openai.com/v1/audio/transcriptions';
     const prompt = this.buildWhisperPrompt(options.lexicon);
 
