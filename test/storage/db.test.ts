@@ -72,8 +72,10 @@ describe('IndexedDB Edge Cache Persistence Layer', () => {
 
     const photos = await getPhotosForStationFromDb('ST-001', db);
     expect(photos).toHaveLength(2);
-    expect(photos[0].azimuth).toBe(45);
-    expect(photos[1].caption).toContain('Hand specimen');
+    const captions = photos.map((p) => p.caption);
+    expect(captions).toContain('Outcrop wide shot');
+    expect(captions).toContain('Hand specimen macro with coin scale');
+    expect(photos.every((p) => p.azimuth === 45)).toBe(true);
   });
 
   it('filters un-synced stations and marks them synced upon office upload', async () => {

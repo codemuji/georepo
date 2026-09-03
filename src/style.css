@@ -248,6 +248,83 @@ body {
   font-weight: 600;
 }
 
+/* Offline Spatial Breadcrumb Canvas Deck */
+.spatial-tracker-card {
+  background: var(--geo-granite);
+  border: 1px solid var(--geo-border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.spatial-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.spatial-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--strata-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spatial-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.spatial-btn {
+  background: var(--geo-slate);
+  color: #fff;
+  border: 1px solid var(--geo-border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out);
+}
+
+.spatial-btn:hover {
+  background: #232c3a;
+  border-color: var(--ochre-amber);
+}
+
+.spatial-btn:active {
+  transform: scale(0.96);
+}
+
+.spatial-canvas-container {
+  width: 100%;
+  height: 280px;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.spatial-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+
+.spatial-canvas:active {
+  cursor: grabbing;
+}
+
 /* Geological Specimen Ticket / Station Card */
 .station-specimen-card {
   background: var(--geo-slate);

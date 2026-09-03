@@ -2,7 +2,7 @@ import {
   fieldToReportReducer,
   INITIAL_FIELD_TO_REPORT_STATE
 } from '../domain/reducer';
-import { FieldToReportState } from '../domain/types';
+import { FieldToReportState, Coordinates } from '../domain/types';
 import {
   openGeoDatabase,
   saveStationToDb,
@@ -13,11 +13,14 @@ import {
 import { getCurrentCoordinates, compassService } from '../services/sensors';
 import { audioRecorderService } from '../services/audio';
 import { toast } from './toast';
+import { SpatialTrackerCanvas } from './spatialTracker';
 
 export class FieldCaptureApp {
   private state: FieldToReportState = { ...INITIAL_FIELD_TO_REPORT_STATE };
   private recordingDuration: number = 0;
   private container: HTMLElement;
+  private spatialTracker: SpatialTrackerCanvas | null = null;
+  private userCoordinates: Coordinates | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -40,12 +43,40 @@ export class FieldCaptureApp {
           }
         };
       }
+
+      // Pre-fetch user GPS fix
+      this.userCoordinates = await getCurrentCoordinates();
     } catch (err) {
-      console.warn('IndexedDB load warning:', err);
+      console.warn('IndexedDB / Sensor initialization notice:', err);
     }
 
     this.render();
+    this.initSpatialCanvas();
     this.startCompassTicker();
+  }
+
+  private initSpatialCanvas(): void {
+    const canvasMount = document.getElementById('spatialCanvasContainer');
+    if (!canvasMount) return;
+
+    this.spatialTracker = new SpatialTrackerCanvas({
+      container: canvasMount,
+      onSelectStation: (stationId: string) => {
+        this.state = {
+          ...this.state,
+          traverse: { ...this.state.traverse, activeStationId: stationId }
+        };
+        this.render();
+        toast.info(`Selected station ${stationId}`);
+      }
+    });
+
+    const heading = compassService.getHeading();
+    this.spatialTracker.updateData(
+      this.state.traverse.stations,
+      this.userCoordinates,
+      heading
+    );
   }
 
   private startCompassTicker(): void {
@@ -65,6 +96,15 @@ export class FieldCaptureApp {
         azimuthRoseEl.textContent = this.getCompassRose(heading);
       }
 
+      // Update spatial tracker heading marker
+      if (this.spatialTracker) {
+        this.spatialTracker.updateData(
+          this.state.traverse.stations,
+          this.userCoordinates,
+          heading
+        );
+      }
+
       requestAnimationFrame(updateCompass);
     };
 
@@ -75,6 +115,15 @@ export class FieldCaptureApp {
     this.state = fieldToReportReducer(this.state, action);
     this.syncActiveStationToDb();
     this.render();
+
+    if (this.spatialTracker) {
+      const heading = compassService.getHeading();
+      this.spatialTracker.updateData(
+        this.state.traverse.stations,
+        this.userCoordinates,
+        heading
+      );
+    }
   }
 
   private async syncActiveStationToDb(): Promise<void> {
@@ -98,7 +147,7 @@ export class FieldCaptureApp {
     const heading = compassService.getHeading();
     const isRecording = audioRecorderService.isRecording();
 
-    // Structural strike & dip defaults / readings
+    // Structural strike & dip readings
     const strike = (activeStation?.extracted as any)?.strike ?? activeStation?.azimuth ?? heading;
     const dip = (activeStation?.extracted as any)?.dip ?? 45;
     const dipDir = (activeStation?.extracted as any)?.dipDirection ?? 'SE';
@@ -109,7 +158,6 @@ export class FieldCaptureApp {
         <header class="field-header">
           <div class="brand-wrapper">
             <div class="geology-icon-badge">
-              <!-- Geological Hammer & Pick Icon -->
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14.5 4l-4 4L6 3.5 3.5 6l4.5 4.5-4 4L8 18l4-4 4.5 4.5 2.5-2.5-4.5-4.5 4-4L14.5 4z"/>
                 <path d="M18 14l3.5 3.5a2.12 2.12 0 0 1-3 3L15 17"/>
@@ -156,12 +204,30 @@ export class FieldCaptureApp {
 
           <div class="gps-elevation-block">
             <div class="gps-coords tabular-nums">
-              ${activeStation ? `${activeStation.coordinates.lat.toFixed(4)}°, ${activeStation.coordinates.lon.toFixed(4)}°` : 'Awaiting GPS'}
+              ${activeStation ? `${activeStation.coordinates.lat.toFixed(4)}°, ${activeStation.coordinates.lon.toFixed(4)}°` : (this.userCoordinates ? `${this.userCoordinates.lat.toFixed(4)}°, ${this.userCoordinates.lon.toFixed(4)}°` : 'Awaiting GPS')}
             </div>
             <div class="elevation-pill tabular-nums">
-              ${activeStation?.coordinates.elevation ? `Alt: ${activeStation.coordinates.elevation}m` : 'Datum: WGS84'}
+              ${activeStation?.coordinates.elevation ? `Alt: ${activeStation.coordinates.elevation}m` : (this.userCoordinates?.elevation ? `Alt: ${this.userCoordinates.elevation}m` : 'Datum: WGS84')}
             </div>
           </div>
+        </div>
+
+        <!-- Offline Spatial Breadcrumb Tracker (Zero-Tile Vector Canvas) -->
+        <div class="spatial-tracker-card">
+          <div class="spatial-header-bar">
+            <div class="spatial-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+              </svg>
+              <span>Offline Spatial Breadcrumb Canvas</span>
+            </div>
+            <div class="spatial-controls">
+              <button id="btnZoomIn" class="spatial-btn" title="Zoom in">+</button>
+              <button id="btnZoomOut" class="spatial-btn" title="Zoom out">-</button>
+              <button id="btnRecenter" class="spatial-btn" title="Recenter traverse">Recenter</button>
+            </div>
+          </div>
+          <div id="spatialCanvasContainer" class="spatial-canvas-container"></div>
         </div>
 
         <!-- Geological Specimen Ticket / Station Card -->
@@ -183,7 +249,6 @@ export class FieldCaptureApp {
           <div class="strike-dip-plate">
             <div class="strike-dip-label">Structural Orientation:</div>
             <div class="strike-dip-value tabular-nums">
-              <!-- Geological Strike Line + Dip Tick SVG -->
               <svg class="strike-symbol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="2" y1="12" x2="22" y2="12" />
                 <line x1="12" y1="12" x2="12" y2="18" />
@@ -300,13 +365,27 @@ export class FieldCaptureApp {
       </div>
     `;
 
+    this.initSpatialCanvas();
     this.attachEventListeners();
   }
 
   private attachEventListeners(): void {
+    // Spatial Canvas Controls
+    document.getElementById('btnZoomIn')?.addEventListener('click', () => {
+      this.spatialTracker?.zoomIn();
+    });
+    document.getElementById('btnZoomOut')?.addEventListener('click', () => {
+      this.spatialTracker?.zoomOut();
+    });
+    document.getElementById('btnRecenter')?.addEventListener('click', () => {
+      this.spatialTracker?.recenter();
+      toast.info('Spatial canvas re-centered to traverse origin');
+    });
+
     // 1. New Station
     document.getElementById('btnNewStation')?.addEventListener('click', async () => {
       const coords = await getCurrentCoordinates();
+      this.userCoordinates = coords;
       const azimuth = compassService.getHeading();
       this.dispatch({ type: 'NEW_STATION', coordinates: coords, azimuth });
       toast.success(`Locked Station at ${coords.lat}°, ${coords.lon}°`);
@@ -350,7 +429,6 @@ export class FieldCaptureApp {
           toast.info('Recording started. Speak your field observations freely...');
           this.render();
         } catch (err: any) {
-          // If browser mic permission is denied or simulated
           this.simulateVoiceMemo();
         }
       }
@@ -410,9 +488,11 @@ export class FieldCaptureApp {
       const lat = -26.2041 + (idx * 0.005);
       const lon = 28.0473 + (idx * 0.003);
 
+      this.userCoordinates = { lat, lon, elevation: 1750 - (idx * 15), accuracy: 4.0 };
+
       this.dispatch({
         type: 'NEW_STATION',
-        coordinates: { lat, lon, elevation: 1750 - (idx * 15), accuracy: 4.0 },
+        coordinates: this.userCoordinates,
         azimuth: azimuths[idx % 3]
       });
 
