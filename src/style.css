@@ -1,18 +1,29 @@
 :root {
-  --bg-primary: #0b0f15;
-  --bg-surface: #141b24;
-  --bg-card: #1c2633;
-  --border-color: #2b394d;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --accent-primary: #38bdf8;
-  --accent-secondary: #0284c7;
-  --success: #22c55e;
-  --success-bg: rgba(34, 197, 94, 0.15);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245, 158, 11, 0.15);
-  --danger: #ef4444;
-  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Geology Earth & Mineral Palette */
+  --geo-basalt: #0c0f14;
+  --geo-granite: #141922;
+  --geo-slate: #1a222e;
+  --geo-border: rgba(255, 255, 255, 0.08);
+  --geo-border-accent: rgba(217, 119, 6, 0.35);
+  
+  /* Mineral Accents */
+  --ochre-amber: #d97706;        /* Iron oxide / gossan */
+  --ochre-glow: rgba(217, 119, 6, 0.15);
+  --olivine-green: #16a34a;      /* Ultramafic / Peridotite */
+  --olivine-glow: rgba(22, 163, 74, 0.15);
+  --azurite-blue: #0284c7;       /* Copper carbonate */
+  --azurite-glow: rgba(2, 132, 199, 0.15);
+  --pyrite-gold: #eab308;        /* Sulfides */
+  --quartz-bone: #f8fafc;        /* High-contrast rock text */
+  --strata-muted: #94a3b8;       /* Siltstone gray */
+
+  /* Emil Kowalski Custom Easing Curves */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
@@ -23,39 +34,72 @@
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: var(--font-family);
+  background-color: var(--geo-basalt);
+  color: var(--quartz-bone);
+  font-family: var(--font-sans);
   line-height: 1.5;
   padding: 16px;
   -webkit-font-smoothing: antialiased;
+  /* Subtle Topographic Contour Background Texture */
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(217, 119, 6, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(2, 132, 199, 0.03) 0%, transparent 40%),
+    linear-gradient(to bottom, rgba(12, 15, 20, 0.95), var(--geo-basalt));
+  min-height: 100vh;
 }
 
 #app {
-  max-width: 600px;
+  max-width: 620px;
   margin: 0 auto;
 }
 
-/* Header & Badges */
+/* Tabular figures for coordinates & sensors */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Header & Instrument Badge */
 .field-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 14px;
+  border-bottom: 1px solid var(--geo-border);
+  margin-bottom: 16px;
+}
+
+.brand-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.geology-icon-badge {
+  width: 36px;
+  height: 36px;
+  background: var(--ochre-glow);
+  border: 1px solid var(--geo-border-accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ochre-amber);
 }
 
 .brand-title {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   color: #fff;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
 }
 
-.campaign-name {
-  font-size: 12px;
-  color: var(--text-secondary);
+.campaign-tag {
+  font-size: 11px;
+  color: var(--strata-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .header-badges {
@@ -64,118 +108,258 @@ body {
 }
 
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  letter-spacing: 0.4px;
+  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
+}
+
+.badge:active {
+  transform: scale(0.96);
+}
+
+.badge-offline {
+  background: var(--ochre-glow);
+  color: var(--ochre-amber);
+  border: 1px solid var(--geo-border-accent);
+}
+
+.badge-online {
+  background: var(--olivine-glow);
+  color: var(--olivine-green);
+  border: 1px solid rgba(22, 163, 74, 0.4);
+}
+
+.badge-neutral {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--strata-muted);
+  border: 1px solid var(--geo-border);
+}
+
+/* Brunton Compass-Clinometer Instrument Deck */
+.instrument-deck {
+  background: var(--geo-granite);
+  border: 1px solid var(--geo-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+}
+
+.brunton-dial-container {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.compass-bezel {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #222b38 0%, #10141b 100%);
+  border: 2px solid var(--ochre-amber);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.8), 0 0 10px rgba(217, 119, 6, 0.2);
+}
+
+.compass-needle {
+  position: absolute;
+  width: 3px;
+  height: 48px;
+  background: linear-gradient(to bottom, #ef4444 50%, #94a3b8 50%);
+  border-radius: 2px;
+  transition: transform 200ms var(--ease-out);
+  transform-origin: center center;
+}
+
+.compass-center-pin {
+  width: 8px;
+  height: 8px;
+  background: #f8fafc;
+  border-radius: 50%;
+  border: 1px solid #1e293b;
+  z-index: 2;
+}
+
+.compass-cardinal {
+  position: absolute;
+  font-size: 8px;
+  font-weight: 800;
+  color: var(--strata-muted);
+}
+.cardinal-n { top: 2px; color: #ef4444; }
+.cardinal-s { bottom: 2px; }
+.cardinal-e { right: 3px; }
+.cardinal-w { left: 3px; }
+
+.instrument-readout {
+  display: flex;
+  flex-direction: column;
+}
+
+.azimuth-value {
+  font-size: 20px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #fff;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.azimuth-rose {
+  font-size: 12px;
+  color: var(--ochre-amber);
+  font-weight: 600;
+}
+
+.instrument-sub {
+  font-size: 11px;
+  color: var(--strata-muted);
+}
+
+.gps-elevation-block {
+  text-align: right;
+  font-family: var(--font-mono);
+}
+
+.gps-coords {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.elevation-pill {
+  font-size: 11px;
+  color: var(--azurite-blue);
+  font-weight: 600;
+}
+
+/* Geological Specimen Ticket / Station Card */
+.station-specimen-card {
+  background: var(--geo-slate);
+  border: 1px solid var(--geo-border);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 18px;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.station-specimen-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 18px;
+  right: 18px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--ochre-amber), var(--azurite-blue), var(--olivine-green));
+  border-radius: 2px;
+}
+
+.specimen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 4px;
+  margin-bottom: 16px;
+}
+
+.station-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.station-id {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.datum-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--strata-muted);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--geo-border);
+}
+
+.status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
   border-radius: 9999px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.badge-offline {
-  background: var(--warning-bg);
-  color: var(--warning);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-}
-
-.badge-online {
-  background: var(--success-bg);
-  color: var(--success);
-  border: 1px solid rgba(34, 197, 94, 0.4);
-}
-
-.badge-neutral {
-  background: rgba(148, 163, 184, 0.15);
-  color: var(--text-secondary);
-  border: 1px solid rgba(148, 163, 184, 0.3);
-}
-
-/* Telemetry Bar */
-.telemetry-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.telemetry-chip {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 12px;
-  white-space: nowrap;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.telemetry-label {
-  color: var(--text-secondary);
-}
-
-.telemetry-value {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  color: #fff;
-}
-
-/* Station Card */
-.station-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 18px;
-  margin-bottom: 18px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
-.station-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-
-.station-tag {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.station-id {
-  font-size: 26px;
-  font-weight: 800;
-  color: #fff;
-  font-family: var(--font-mono);
-  margin-top: 2px;
-}
-
-.status-pill {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 12px;
-  text-transform: uppercase;
-}
-
 .status-offline_cached {
-  background: rgba(245, 158, 11, 0.2);
-  color: var(--warning);
-  border: 1px solid var(--warning);
+  background: var(--ochre-glow);
+  color: var(--ochre-amber);
+  border: 1px solid var(--geo-border-accent);
 }
 
 .status-synced {
-  background: var(--success-bg);
-  color: var(--success);
-  border: 1px solid var(--success);
+  background: var(--olivine-glow);
+  color: var(--olivine-green);
+  border: 1px solid rgba(22, 163, 74, 0.4);
 }
 
-/* 10-Second Big Touch Actions */
+/* Structural Strike & Dip Visualizer Plate */
+.strike-dip-plate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--geo-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.strike-dip-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--strata-muted);
+  letter-spacing: 0.5px;
+}
+
+.strike-dip-value {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pyrite-gold);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.strike-symbol-icon {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+}
+
+/* Emil Kowalski Button Press Principles: scale(0.97) on :active with custom curve */
 .action-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -183,51 +367,53 @@ body {
   margin-bottom: 16px;
 }
 
-.field-btn {
+.geo-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 72px;
-  border-radius: 10px;
+  min-height: 76px;
+  border-radius: 12px;
   font-size: 13px;
   font-weight: 600;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: transform 0.1s ease, background-color 0.15s ease;
+  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out);
   user-select: none;
 }
 
-.field-btn:active {
-  transform: scale(0.96);
+/* Responsive tactile click feedback */
+.geo-btn:active {
+  transform: scale(0.97);
 }
 
 .btn-primary {
-  background: #0284c7;
+  background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
   color: #fff;
-  border-color: #38bdf8;
+  border-color: rgba(251, 191, 36, 0.4);
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
 }
 
 .btn-primary:hover {
-  background: #0369a1;
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
 }
 
 .btn-accent {
-  background: #1e293b;
+  background: var(--geo-granite);
   color: #fff;
-  border-color: #475569;
+  border-color: var(--geo-border);
 }
 
 .btn-accent:hover {
-  background: #334155;
-  border-color: var(--accent-primary);
+  background: #232c3a;
+  border-color: var(--azurite-blue);
 }
 
 .btn-secondary {
-  background: #1e293b;
+  background: var(--geo-granite);
   color: #fff;
-  border-color: #475569;
+  border-color: var(--geo-border);
 }
 
 .btn-danger {
@@ -236,35 +422,35 @@ body {
   border-color: #f87171;
 }
 
-@keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+/* Pulsing voice recording */
+@keyframes geo-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
+  70% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
 }
 
-.pulsing {
-  animation: pulse-red 1.5s infinite;
+.pulsing-record {
+  animation: geo-pulse 1.4s infinite;
 }
 
-/* Details Section */
+/* Details and Geological Notes */
 .details-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--geo-border);
   border-radius: 8px;
-  padding: 12px;
-  margin-top: 12px;
+  padding: 12px 14px;
 }
 
 .field-meta-row {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .meta-label {
-  color: var(--text-secondary);
+  color: var(--strata-muted);
 }
 
 .meta-value {
@@ -272,35 +458,56 @@ body {
   font-weight: 500;
 }
 
-.transcript-box {
-  margin-top: 8px;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border-left: 3px solid var(--accent-primary);
+.field-note-quote {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(12, 15, 20, 0.6);
+  border-left: 3px solid var(--ochre-amber);
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: #e2e8f0;
+  font-style: italic;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 24px;
-  color: var(--text-secondary);
-  font-size: 14px;
+/* Photo Thumbnail Deck */
+.photo-thumb-deck {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
-/* Traverse Section */
+.photo-thumb-chip {
+  background: var(--geo-granite);
+  border: 1px solid var(--geo-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* Traverse Breadcrumbs (Staggered Animation) */
 .traverse-section {
-  margin-top: 20px;
+  margin-top: 22px;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
 }
 
 .traverse-section h3 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--strata-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
 }
 
 .station-chips-list {
@@ -309,34 +516,133 @@ body {
   gap: 8px;
 }
 
+@keyframes fadeInStagger {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .station-chip {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 10px 14px;
+  background: var(--geo-granite);
+  border: 1px solid var(--geo-border);
+  border-radius: 10px;
+  padding: 12px 16px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 160ms var(--ease-out), border-color 160ms var(--ease-out), background-color 160ms var(--ease-out);
+  animation: fadeInStagger 240ms var(--ease-out) forwards;
+}
+
+.station-chip:nth-child(1) { animation-delay: 0ms; }
+.station-chip:nth-child(2) { animation-delay: 40ms; }
+.station-chip:nth-child(3) { animation-delay: 80ms; }
+.station-chip:nth-child(4) { animation-delay: 120ms; }
+
+.station-chip:active {
+  transform: scale(0.98);
 }
 
 .station-chip:hover {
-  background: var(--bg-card);
-  border-color: var(--accent-primary);
+  background: var(--geo-slate);
+  border-color: var(--ochre-amber);
 }
 
 .station-chip.active {
-  border-color: var(--accent-primary);
-  background: rgba(56, 189, 248, 0.1);
+  border-color: var(--ochre-amber);
+  background: rgba(217, 119, 6, 0.08);
+  box-shadow: 0 0 12px rgba(217, 119, 6, 0.15);
+}
+
+.chip-id-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rock-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ochre-amber);
 }
 
 .chip-coords {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--strata-muted);
 }
 
-.chip-status {
-  font-size: 12px;
+/* Sonner-Style Toast Engine Container */
+.geo-toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 360px;
+}
+
+.geo-toast {
+  pointer-events: auto;
+  background: rgba(20, 25, 34, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--geo-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  /* Never animate from scale(0) per Emil Kowalski */
+  opacity: 0;
+  transform: scale(0.95) translateY(10px);
+  transition: transform 200ms var(--ease-out), opacity 200ms var(--ease-out);
+}
+
+.geo-toast.geo-toast-visible {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.geo-toast.geo-toast-exiting {
+  opacity: 0;
+  transform: scale(0.96) translateY(-8px);
+}
+
+.geo-toast-success {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.geo-toast-warning {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.geo-toast-info {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.geo-toast-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.geo-toast-msg {
+  flex: 1;
+  line-height: 1.4;
 }
