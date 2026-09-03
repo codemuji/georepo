@@ -10,8 +10,8 @@
     "test:watch": "vitest",
     "preview": "vite preview"
   },
-  "dependencies": {},
   "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
     "typescript": "^5.7.3",
     "vite": "^6.2.0",
     "vite-plugin-pwa": "^0.21.1",

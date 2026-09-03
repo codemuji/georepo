@@ -5,13 +5,13 @@ The low-friction 10-second field capture user interface for mobile devices opera
 
 **Blocked by:** 01: Project Scaffolding & Core Domain Reducer
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 ## Acceptance Criteria
 
-- [ ] PWA configured with Service Worker providing full offline asset caching.
-- [ ] Single-tap "New Station" action locking latitude, longitude, elevation, accuracy, and timestamp via `navigator.geolocation`.
-- [ ] Audio recording interface utilizing `MediaRecorder` API allowing arbitrary length natural speech dictation saved as audio blobs.
-- [ ] Camera capture integration reading device azimuth from `DeviceOrientationEvent` to tag photos with orientation heading.
-- [ ] IndexedDB persistence layer storing stations, audio blobs, and photo assets with zero data loss across browser restarts.
-- [ ] Clear UI status indicators displaying "Offline Edge" and the count of un-synced stations in the local queue.
+- [x] PWA configured with Service Worker providing full offline asset caching.
+- [x] Single-tap "New Station" action locking latitude, longitude, elevation, accuracy, and timestamp via `navigator.geolocation`.
+- [x] Audio recording interface utilizing `MediaRecorder` API allowing arbitrary length natural speech dictation saved as audio blobs.
+- [x] Camera capture integration reading device azimuth from `DeviceOrientationEvent` to tag photos with orientation heading.
+- [x] IndexedDB persistence layer storing stations, audio blobs, and photo assets with zero data loss across browser restarts.
+- [x] Clear UI status indicators displaying "Offline Edge" and the count of un-synced stations in the local queue.
