@@ -17,5 +17,8 @@
     "vite": "^6.2.0",
     "vite-plugin-pwa": "^0.21.1",
     "vitest": "^3.0.7"
+  },
+  "dependencies": {
+    "docx": "^9.7.1"
   }
 }

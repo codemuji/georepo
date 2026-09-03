@@ -4,6 +4,7 @@ import {
 import { FieldToReportState, Station } from '../domain/types';
 import { SpatialProjection } from './spatialTracker';
 import { llmExtractionService } from '../services/extraction';
+import { generateGeologicalReportDocx, downloadDocxBlob } from '../services/reportGenerator';
 import { toast } from './toast';
 
 export interface OfficeWorkbenchOptions {
@@ -89,8 +90,16 @@ export class OfficeWorkbench {
               <span class="stat-badge ${flaggedCount > 0 ? 'stat-flagged' : 'stat-neutral'}">${flaggedCount} Flagged</span>
               <span class="stat-badge stat-approved">${approvedCount} Approved</span>
             </div>
+            <select id="themeSelector" class="form-input" style="padding: 4px 8px; font-size: 11px; background: var(--geo-slate);" title="Select Report Styling Theme">
+              <option value="MODERN_CORPORATE" ${this.state.project.theme === 'MODERN_CORPORATE' ? 'selected' : ''}>Theme: Modern Corporate</option>
+              <option value="CLASSIC_TECHNICAL" ${this.state.project.theme === 'CLASSIC_TECHNICAL' ? 'selected' : ''}>Theme: Classic Technical</option>
+              <option value="GEOLOGICAL_SURVEY" ${this.state.project.theme === 'GEOLOGICAL_SURVEY' ? 'selected' : ''}>Theme: Geological Survey</option>
+            </select>
+            <button id="btnGenerateReport" class="workbench-btn" style="background: var(--ochre-amber); color: #fff; border: none;" title="Compile verified stations into Word .docx report">
+              📄 Export .docx Report
+            </button>
             <button id="btnSwitchField" class="workbench-btn btn-field-switch">
-              📱 Switch to Field Capture
+              📱 Field PWA
             </button>
           </div>
         </header>
@@ -622,6 +631,35 @@ export class OfficeWorkbench {
       });
 
       toast.success(`Station ${targetId} verified & approved for report compilation!`);
+    });
+
+    // Theme selector
+    const themeSelect = document.getElementById('themeSelector') as HTMLSelectElement;
+    themeSelect?.addEventListener('change', () => {
+      this.dispatch({
+        type: 'SET_THEME',
+        theme: themeSelect.value as any
+      });
+      toast.info(`Theme set to ${themeSelect.value}`);
+    });
+
+    // Generate Word .docx Report
+    document.getElementById('btnGenerateReport')?.addEventListener('click', async () => {
+      try {
+        toast.info('Compiling verified stations into decorated Word document (.docx)...');
+        const blob = await generateGeologicalReportDocx(this.state);
+        const filename = `${this.state.project.name.replace(/\s+/g, '_')}_Report.docx`;
+        downloadDocxBlob(blob, filename);
+
+        this.dispatch({
+          type: 'GENERATE_REPORT',
+          theme: this.state.project.theme
+        });
+
+        toast.success(`Downloaded Microsoft Word report: ${filename}`);
+      } catch (err: any) {
+        toast.warning('Report generation notice: ' + err.message);
+      }
     });
   }
 }

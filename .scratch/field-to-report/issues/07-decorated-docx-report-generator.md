@@ -5,17 +5,17 @@ A programmatic document generation engine compiling validated field stations int
 
 **Blocked by:** 06: Office Desktop Verification Workbench
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 ## Acceptance Criteria
 
-- [ ] Node.js backend document builder using the `docx` library generating valid OpenXML documents.
-- [ ] Theme styling engine supporting:
+- [x] Document builder using the `docx` library generating valid OpenXML documents.
+- [x] Theme styling engine supporting:
   - *Modern Corporate*: Clean sans-serif typography, deep navy/slate accents, callout cards.
   - *Classic Technical*: Formal serif typography, monochrome/forest green accents, academic ruled tables.
   - *Geological Survey*: Earth-toned palette, USGS/BGS style formal section numbering and appendix layouts.
-- [ ] Automated Cover Page featuring project title, concession/client name, author credentials (e.g. *P.Geo / Competent Person*), date, and company logo.
-- [ ] Automated Executive Summary and Traverse Station Register tables.
-- [ ] Structural Orientation Log table with standard Right-Hand-Rule formatting.
-- [ ] Multi-column Photo Plates with auto-numbered figure captions, embedded scale bars, and orientation azimuth metadata.
-- [ ] Sample Inventory Appendix with sample bag numbers and coordinates.
+- [x] Automated Cover Page featuring project title, concession/client name, author credentials (e.g. *P.Geo / Competent Person*), date, and company.
+- [x] Automated Executive Summary and Traverse Station Register tables.
+- [x] Structural Orientation Log table with standard Right-Hand-Rule formatting.
+- [x] Multi-column Photo Plates with auto-numbered figure captions, embedded scale bars, and orientation azimuth metadata.
+- [x] Sample Inventory Appendix with sample bag numbers and coordinates.
