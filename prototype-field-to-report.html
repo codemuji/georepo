@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geological Field-to-Report State Model Prototype</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79b8ff;
+      --success: #2ea043;
+      --success-bg: #0f3518;
+      --warning: #d29922;
+      --warning-bg: #342805;
+      --danger: #f85149;
+      --danger-bg: #3c1211;
+      --tag-bg: #21262d;
+      --code-bg: #090c10;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      padding: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 18px;
+      margin-bottom: 24px;
+    }
+    h1 { font-size: 24px; color: #fff; margin-bottom: 8px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-proto { background: #388bfd33; color: #58a6ff; border: 1px solid #388bfd66; }
+    .badge-online { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); }
+    .badge-offline { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning); }
+    
+    .question-box {
+      background: var(--card-bg);
+      border-left: 4px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--text);
+    }
+    .question-box strong { color: #fff; }
+
+    /* Layout */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 8px;
+    }
+
+    /* Buttons */
+    .btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    button {
+      background: var(--tag-bg);
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    button:hover { background: #30363d; color: #fff; border-color: #8b949e; }
+    button:active { transform: translateY(1px); }
+    button.primary { background: #238636; color: #fff; border-color: #2ea043; }
+    button.primary:hover { background: #2ea043; }
+    button.accent { background: #1f6feb; color: #fff; border-color: #388bfd; }
+    button.accent:hover { background: #388bfd; }
+    button.warning { background: #9e6a03; color: #fff; border-color: #d29922; }
+    button.step-btn {
+      width: 100%;
+      text-align: left;
+      padding: 10px 14px;
+      background: #1f242c;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    button.step-btn:hover { background: #2d333b; border-color: var(--accent); }
+    button.step-btn.done { opacity: 0.6; text-decoration: line-through; border-color: #238636; }
+    button.step-btn.current { border-color: var(--accent); background: #1b2f48; font-weight: 600; color: #fff; }
+
+    /* State Panels */
+    .state-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #21262d;
+    }
+    .state-label { color: var(--text-muted); }
+    .state-val { font-family: var(--font-mono); color: #fff; font-weight: 500; }
+    .state-val.highlight { color: #7ee787; }
+    .state-val.alert { color: var(--warning); }
+
+    /* Walkthrough Tabs */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--card-border); margin-bottom: 14px; }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      padding: 8px 14px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* Station Table */
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid var(--card-border); }
+    th { color: var(--text-muted); font-weight: 500; }
+    tr:hover { background: #1c2128; }
+
+    /* Event Log */
+    .log-box {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      max-height: 180px;
+      overflow-y: auto;
+      color: #7ee787;
+    }
+    .log-entry { margin-bottom: 4px; word-break: break-all; }
+    .log-time { color: var(--text-muted); margin-right: 8px; }
+
+    /* Report Card Preview */
+    .report-preview {
+      background: #ffffff;
+      color: #24292f;
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 12px;
+      font-size: 12px;
+      border-left: 6px solid #0969da;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .report-preview h3 { font-size: 14px; margin-bottom: 6px; color: #0969da; }
+    .report-preview p { margin-bottom: 6px; }
+    .report-preview table { color: #24292f; }
+    .report-preview th, .report-preview td { border-bottom: 1px solid #d0d7de; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>
+      <span>Geological Field-to-Report Automation Engine</span>
+      <span class="badge badge-proto">Throwaway Logic Prototype</span>
+      <span id="netStatusBadge" class="badge badge-offline">Offline Edge</span>
+    </h1>
+    <div class="question-box">
+      <strong>Core Question Under Test:</strong> Does the state machine seamlessly transition freeform voice dictation + GPS coordinates from an offline PWA edge cache, through AI entity extraction with lexicon boosting, into a 3-pane verification workbench where errors can be corrected before generating a publication-grade Word (.docx) report?
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: Free-play actions & Walkthroughs -->
+    <div>
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">
+          <span>Guided Scenario Walkthroughs</span>
+          <span style="font-size: 12px; color: var(--text-muted);">Step-by-step test cases</span>
+        </div>
+
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchScenario(1)">1. Happy Path Exploration</button>
+          <button class="tab-btn" onclick="switchScenario(2)">2. Speech Ambiguity & Correction</button>
+          <button class="tab-btn" onclick="switchScenario(3)">3. Geotechnical RMR Traverse</button>
+        </div>
+
+        <div id="scenarioDesc" style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;"></div>
+        <div id="scenarioSteps"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Interactive Free-Play Controls</span>
+          <button onclick="resetPrototype()" style="font-size: 11px; padding: 3px 8px;">Reset Model</button>
+        </div>
+
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">1. Project Configuration</p>
+        <div class="btn-group">
+          <button onclick="dispatch('SET_MODE', {mode: 'MINERAL_EXPLORATION'})">Mode: Mineral Exploration</button>
+          <button onclick="dispatch('SET_MODE', {mode: 'GEOTECHNICAL_ENGINEERING'})">Mode: Geotech RMR</button>
+          <button onclick="dispatch('SET_MODE', {mode: 'REGIONAL_MAPPING'})">Mode: Regional Mapping</button>
+        </div>
+
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">2. Field 10-Second Capture (PWA Offline)</p>
+        <div class="btn-group">
+          <button class="primary" onclick="triggerNewStation()">+ New Station (Auto-GPS)</button>
+          <button onclick="triggerVoiceMemo()">Record Freeform Voice Note</button>
+          <button onclick="triggerAttachPhoto()">Snap Outcrop Photo (045° Azimuth)</button>
+        </div>
+
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">3. Connectivity & Office Sync</p>
+        <div class="btn-group">
+          <button class="warning" onclick="dispatch('TOGGLE_ONLINE')">Toggle Online / Offline</button>
+          <button class="accent" onclick="dispatch('SYNC_QUEUE')">Sync Cached Stations to Office</button>
+        </div>
+
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">4. Office Verification Workbench</p>
+        <div class="btn-group">
+          <button class="accent" onclick="dispatch('RUN_AI_EXTRACTION')">Run AI Whisper + LLM Parser</button>
+          <button onclick="triggerInlineEdit()">Correct Strike/Dip (015 vs 150)</button>
+          <button class="primary" onclick="dispatch('APPROVE_STATION')">Approve Station for Report</button>
+        </div>
+
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">5. Deliverable Generation</p>
+        <div class="btn-group">
+          <button class="primary" onclick="dispatch('GENERATE_REPORT', {theme: 'MODERN_CORPORATE'})">Compile .DOCX &amp; ZIP Archive</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: State Visualization & Outputs -->
+    <div>
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">
+          <span>Active System State</span>
+          <span id="stateProjectMode" class="badge" style="background:#1f6feb33; color:#58a6ff;">MINERAL_EXPLORATION</span>
+        </div>
+
+        <div class="state-row">
+          <span class="state-label">Network Edge Status</span>
+          <span id="stateNetwork" class="state-val alert">OFFLINE (IndexedDB Active)</span>
+        </div>
+        <div class="state-row">
+          <span class="state-label">Project Lexicon Terms Loaded</span>
+          <span id="stateLexiconCount" class="state-val">6 minerals / 3 formations</span>
+        </div>
+        <div class="state-row">
+          <span class="state-label">Active Station Selected</span>
+          <span id="stateActiveStation" class="state-val highlight">None</span>
+        </div>
+        <div class="state-row">
+          <span class="state-label">GPS Fix &amp; Heading</span>
+          <span id="stateGps" class="state-val">Waiting for fix</span>
+        </div>
+        <div class="state-row">
+          <span class="state-label">Raw Audio Memo Duration</span>
+          <span id="stateAudio" class="state-val">No recording</span>
+        </div>
+        <div class="state-row">
+          <span class="state-label">AI Extraction Confidence</span>
+          <span id="stateConfidence" class="state-val">N/A</span>
+        </div>
+        <div class="state-row">
+          <span class="state-label">Station Verification Status</span>
+          <span id="stateVerification" class="state-val">N/A</span>
+        </div>
+        <div class="state-row">
+          <span class="state-label">Report Deliverable Status</span>
+          <span id="stateReportStatus" class="state-val">Not compiled</span>
+        </div>
+      </div>
+
+      <!-- Station Register -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">
+          <span>Traverse Station Register (Workbench 3-Pane View)</span>
+          <span id="stationCountBadge" style="font-size: 11px; color: var(--text-muted);">0 stations</span>
+        </div>
+        <div style="max-height: 180px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Lithology</th>
+                <th>Strike / Dip</th>
+                <th>Sample</th>
+                <th>Confidence</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="stationTableBody">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 14px;">No stations captured yet. Start a traverse on the left.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Report Deliverable Card -->
+      <div id="reportContainer" style="display: none;">
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-title">
+            <span>Generated Decorated Deliverable (.docx Preview)</span>
+            <span class="badge" style="background:#238636; color:#fff;">Word .DOCX + ZIP</span>
+          </div>
+          <div class="report-preview" id="reportPreviewContent"></div>
+        </div>
+      </div>
+
+      <!-- Live Event Log -->
+      <div class="card">
+        <div class="card-title">
+          <span>Event &amp; Transition Audit Log</span>
+          <span style="font-size: 11px; color: var(--text-muted);">Immutable audit trail</span>
+        </div>
+        <div class="log-box" id="eventLog"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PURE LOGIC MODULE (Liftable directly to codebase) -->
+  <script>
+    /**
+     * PURE REDUCER & DOMAIN ENGINE: FieldToReportEngine
+     * Completely decoupled from DOM and presentation.
+     */
+    const INITIAL_STATE = {
+      project: {
+        name: "Witwatersrand Basin Concession A",
+        mode: "MINERAL_EXPLORATION",
+        theme: "MODERN_CORPORATE",
+        lexicon: ["Witwatersrand Supergroup", "pyrrhotite", "chalcopyrite", "quartz-pebble conglomerate", "potassic alteration", "sericitic"]
+      },
+      network: {
+        isOnline: false,
+        pendingSyncCount: 0
+      },
+      traverse: {
+        activeStationId: null,
+        stations: []
+      },
+      report: {
+        compiledAt: null,
+        title: null,
+        themeUsed: null,
+        stationCount: 0,
+        archiveZipReady: false
+      },
+      auditLog: []
+    };
+
+    function fieldToReportReducer(state = INITIAL_STATE, action) {
+      const now = new Date().toLocaleTimeString();
+      let logMsg = "";
+
+      switch (action.type) {
+        case 'SET_MODE': {
+          logMsg = `Project Mode set to ${action.mode}`;
+          return {
+            ...state,
+            project: { ...state.project, mode: action.mode },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'NEW_STATION': {
+          const newId = `ST-${String(state.traverse.stations.length + 1).padStart(3, '0')}`;
+          const newStation = {
+            id: newId,
+            timestamp: new Date().toISOString(),
+            coordinates: action.coordinates || { lat: -26.2041, lon: 28.0473, elevation: 1753 },
+            azimuth: action.azimuth || 45,
+            audio: null,
+            rawTranscript: null,
+            extracted: null,
+            photos: [],
+            sampleId: null,
+            confidence: null,
+            status: 'OFFLINE_CACHED', // OFFLINE_CACHED -> SYNCED -> EXTRACTED -> VERIFIED
+            verified: false
+          };
+          logMsg = `Captured new Station [${newId}] at Lat ${newStation.coordinates.lat.toFixed(4)}, Lon ${newStation.coordinates.lon.toFixed(4)}`;
+          return {
+            ...state,
+            traverse: {
+              activeStationId: newId,
+              stations: [...state.traverse.stations, newStation]
+            },
+            network: { ...state.network, pendingSyncCount: state.network.pendingSyncCount + 1 },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'RECORD_AUDIO': {
+          const stations = state.traverse.stations.map(st => {
+            if (st.id === state.traverse.activeStationId) {
+              return {
+                ...st,
+                audio: { durationSec: action.duration || 24, blobUrl: "indexeddb://audio_memo_" + st.id },
+                rawTranscript: action.speechText
+              };
+            }
+            return st;
+          });
+          logMsg = `Recorded ${action.duration || 24}s voice memo for [${state.traverse.activeStationId}]: "${action.speechText}"`;
+          return {
+            ...state,
+            traverse: { ...state.traverse, stations },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'ATTACH_PHOTO': {
+          const stations = state.traverse.stations.map(st => {
+            if (st.id === state.traverse.activeStationId) {
+              return {
+                ...st,
+                photos: [...st.photos, { id: 'IMG_' + Date.now(), caption: action.caption, azimuth: action.azimuth || 45 }]
+              };
+            }
+            return st;
+          });
+          logMsg = `Attached outcrop photo for [${state.traverse.activeStationId}] facing ${action.azimuth || 45}°`;
+          return {
+            ...state,
+            traverse: { ...state.traverse, stations },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'TOGGLE_ONLINE': {
+          const nextOnline = !state.network.isOnline;
+          logMsg = nextOnline ? "Device reconnected to Office Wi-Fi" : "Device operating offline in field";
+          return {
+            ...state,
+            network: { ...state.network, isOnline: nextOnline },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'SYNC_QUEUE': {
+          if (!state.network.isOnline) {
+            return {
+              ...state,
+              auditLog: [{ time: now, msg: "SYNC FAILED: Cannot sync while offline." }, ...state.auditLog]
+            };
+          }
+          const stations = state.traverse.stations.map(st => ({
+            ...st,
+            status: st.status === 'OFFLINE_CACHED' ? 'SYNCED' : st.status
+          }));
+          logMsg = `Synced ${state.network.pendingSyncCount} station bundles to office database`;
+          return {
+            ...state,
+            traverse: { ...state.traverse, stations },
+            network: { ...state.network, pendingSyncCount: 0 },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'RUN_AI_EXTRACTION': {
+          const stations = state.traverse.stations.map(st => {
+            if (st.id === state.traverse.activeStationId || !action.singleOnly) {
+              // Simulated AI entity extraction with domain lexicon boosting
+              let extracted = action.extractedData;
+              let confidence = action.confidence || 0.94;
+
+              if (!extracted) {
+                if (st.rawTranscript && st.rawTranscript.includes('pyrite')) {
+                  extracted = {
+                    lithology: "Quartz-pebble conglomerate with pyritic matrix",
+                    strike: 45,
+                    dip: 60,
+                    dipDirection: "SE",
+                    alteration: "Sericitic and silica flooding",
+                    sampleId: "SMP-102"
+                  };
+                } else if (state.project.mode === 'GEOTECHNICAL_ENGINEERING') {
+                  extracted = {
+                    lithology: "Massive Diabase Sill",
+                    strike: 30,
+                    dip: 80,
+                    dipDirection: "NW",
+                    rqd: "75%",
+                    jointSpacing: "0.4m",
+                    weathering: "Slightly Weathered (Grade II)",
+                    sampleId: "GT-CORE-01"
+                  };
+                } else {
+                  extracted = {
+                    lithology: "Medium-grained arkosic sandstone",
+                    strike: action.simulatedError ? 150 : 45, // test case for mishearing
+                    dip: 30,
+                    dipDirection: "SE",
+                    alteration: "Hematite staining",
+                    sampleId: "SMP-044"
+                  };
+                  if (action.simulatedError) confidence = 0.61; // Flagged!
+                }
+              }
+
+              return {
+                ...st,
+                extracted,
+                confidence,
+                status: confidence < 0.7 ? 'FLAGGED_LOW_CONFIDENCE' : 'EXTRACTED',
+                sampleId: extracted.sampleId
+              };
+            }
+            return st;
+          });
+
+          logMsg = `Whisper + LLM extracted structured attributes for [${state.traverse.activeStationId || 'Traverse'}]`;
+          return {
+            ...state,
+            traverse: { ...state.traverse, stations },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'OVERRIDE_MEASUREMENT': {
+          const stations = state.traverse.stations.map(st => {
+            if (st.id === action.stationId) {
+              const updatedExtracted = { ...st.extracted, [action.field]: action.value };
+              return {
+                ...st,
+                extracted: updatedExtracted,
+                confidence: 1.0, // Human verified!
+                status: 'EDITED'
+              };
+            }
+            return st;
+          });
+          logMsg = `Manual Office Override: Corrected [${action.stationId}] ${action.field} to "${action.value}"`;
+          return {
+            ...state,
+            traverse: { ...state.traverse, stations },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'APPROVE_STATION': {
+          const targetId = action.stationId || state.traverse.activeStationId;
+          const stations = state.traverse.stations.map(st => {
+            if (st.id === targetId) {
+              return { ...st, verified: true, status: 'VERIFIED' };
+            }
+            return st;
+          });
+          logMsg = `Geologist approved and signed off on Station [${targetId}] for final report`;
+          return {
+            ...state,
+            traverse: { ...state.traverse, stations },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'GENERATE_REPORT': {
+          const approvedStations = state.traverse.stations.filter(st => st.verified);
+          if (approvedStations.length === 0) {
+            return {
+              ...state,
+              auditLog: [{ time: now, msg: "REPORT FAILED: Zero verified stations to compile." }, ...state.auditLog]
+            };
+          }
+          logMsg = `Successfully compiled decorated Word (.docx) report with ${approvedStations.length} approved stations + complete ZIP archive`;
+          return {
+            ...state,
+            report: {
+              compiledAt: new Date().toLocaleTimeString(),
+              title: `${state.project.name} - Geological Traverse Report`,
+              themeUsed: action.theme || state.project.theme,
+              stationCount: approvedStations.length,
+              archiveZipReady: true
+            },
+            auditLog: [{ time: now, msg: logMsg }, ...state.auditLog]
+          };
+        }
+
+        case 'RESET':
+          return INITIAL_STATE;
+
+        default:
+          return state;
+      }
+    }
+  </script>
+
+  <!-- PROTOTYPE UI INTERFACE & WALKTHROUGH CONTROLLER -->
+  <script>
+    let appState = { ...INITIAL_STATE };
+
+    function dispatch(type, payload = {}) {
+      appState = fieldToReportReducer(appState, { type, ...payload });
+      render();
+    }
+
+    function resetPrototype() {
+      dispatch('RESET');
+    }
+
+    function triggerNewStation() {
+      const lat = -26.2041 + (Math.random() - 0.5) * 0.05;
+      const lon = 28.0473 + (Math.random() - 0.5) * 0.05;
+      dispatch('NEW_STATION', { coordinates: { lat, lon, elevation: 1750 }, azimuth: 45 });
+    }
+
+    function triggerVoiceMemo() {
+      if (!appState.traverse.activeStationId) {
+        alert("Please tap '+ New Station' first!");
+        return;
+      }
+      const dictation = "Outcrop of quartz-pebble conglomerate, pyritic matrix with fine chalcopyrite blebs, strike 045 dip 60 degrees southeast, sericitic alteration halo, collected sample SMP-102.";
+      dispatch('RECORD_AUDIO', { duration: 18, speechText: dictation });
+    }
+
+    function triggerAttachPhoto() {
+      if (!appState.traverse.activeStationId) {
+        alert("Please tap '+ New Station' first!");
+        return;
+      }
+      dispatch('ATTACH_PHOTO', { caption: "Outcrop face showing quartz vein stockwork", azimuth: 45 });
+    }
+
+    function triggerInlineEdit() {
+      if (!appState.traverse.activeStationId) return;
+      dispatch('OVERRIDE_MEASUREMENT', {
+        stationId: appState.traverse.activeStationId,
+        field: 'strike',
+        value: 15
+      });
+    }
+
+    // SCENARIO ENGINE
+    const SCENARIOS = {
+      1: {
+        title: "Scenario 1: Happy Path Traverse (Gold-Quartz Exploration)",
+        desc: "Simulates full journey: Configure project -> Capture 2 stations offline in the field via voice & photo -> Return to camp & connect to Wi-Fi -> Sync queue -> Run AI Whisper extraction -> Verify in office workbench -> Generate decorated Word (.docx) report.",
+        steps: [
+          { text: "1. Configure Project: Mineral Exploration Mode", action: () => dispatch('SET_MODE', {mode: 'MINERAL_EXPLORATION'}) },
+          { text: "2. Lock Station ST-001 (GPS coordinates + Azimuth 045°)", action: () => triggerNewStation() },
+          { text: "3. Speak Freeform Voice Memo (Gold-Quartz vein)", action: () => triggerVoiceMemo() },
+          { text: "4. Snap Outcrop Photo with Compass Orientation", action: () => triggerAttachPhoto() },
+          { text: "5. Return to Basecamp: Reconnect to Office Wi-Fi", action: () => dispatch('TOGGLE_ONLINE') },
+          { text: "6. Sync Offline Cached Queue to Office Database", action: () => dispatch('SYNC_QUEUE') },
+          { text: "7. Run AI Whisper ASR + LLM Entity Extraction", action: () => dispatch('RUN_AI_EXTRACTION') },
+          { text: "8. Office Geologist Reviews & Approves Station ST-001", action: () => dispatch('APPROVE_STATION') },
+          { text: "9. Compile Decorated .DOCX Report & Download ZIP Archive", action: () => dispatch('GENERATE_REPORT', {theme: 'MODERN_CORPORATE'}) }
+        ]
+      },
+      2: {
+        title: "Scenario 2: Speech Ambiguity & Numeric Correction (The Safety Net)",
+        desc: "Tests system defense against AI errors: Geologist dictates strike '015', noisy field wind causes model to extract '150' with low confidence (61%). The system flags the station in orange. In the office workbench, the geologist spots the badge, listens to the audio scrubber, corrects strike to 15°, approves, and compiles safely.",
+        steps: [
+          { text: "1. Lock Station ST-002 Offline", action: () => triggerNewStation() },
+          { text: "2. Dictate Voice Memo with Windy Background Noise", action: () => dispatch('RECORD_AUDIO', {duration: 12, speechText: "Station 2, quartzite bedding, strike 015 dip 30 SE, sample SMP-044."}) },
+          { text: "3. Go Online & Sync to Office", action: () => { if (!appState.network.isOnline) dispatch('TOGGLE_ONLINE'); dispatch('SYNC_QUEUE'); } },
+          { text: "4. AI Extracts with Low Confidence (Misheard Strike 150 vs 015)", action: () => dispatch('RUN_AI_EXTRACTION', { simulatedError: true }) },
+          { text: "5. Office Geologist Listens to Audio & Corrects Strike to 15°", action: () => triggerInlineEdit() },
+          { text: "6. Geologist Signs Off & Approves Corrected Station", action: () => dispatch('APPROVE_STATION') },
+          { text: "7. Compile Validated Word Report", action: () => dispatch('GENERATE_REPORT', {theme: 'CLASSIC_TECHNICAL'}) }
+        ]
+      },
+      3: {
+        title: "Scenario 3: Geotechnical Rock Mass Rating (RMR) Traverse",
+        desc: "Demonstrates schema polymorphism: Switching to Geotechnical Engineering adapts the extracted schema to engineering rock mass ratings (RQD %, joint spacing, weathering grade) instead of mineral assays.",
+        steps: [
+          { text: "1. Switch Project Mode to Geotechnical Engineering", action: () => dispatch('SET_MODE', {mode: 'GEOTECHNICAL_ENGINEERING'}) },
+          { text: "2. Lock Geotech Borehole Station", action: () => triggerNewStation() },
+          { text: "3. Record Engineering Core Log Dictation", action: () => dispatch('RECORD_AUDIO', {duration: 25, speechText: "Diabase sill core run 3, RQD 75%, joint spacing 0.4m, slightly weathered grade II, core sample GT-CORE-01"}) },
+          { text: "4. Go Online & Sync Station", action: () => { if (!appState.network.isOnline) dispatch('TOGGLE_ONLINE'); dispatch('SYNC_QUEUE'); } },
+          { text: "5. Run Geotechnical LLM Extraction (RQD, Joint Spacing, Weathering)", action: () => dispatch('RUN_AI_EXTRACTION') },
+          { text: "6. Approve Station & Compile Engineering Compliance Report", action: () => { dispatch('APPROVE_STATION'); dispatch('GENERATE_REPORT', {theme: 'GEOLOGICAL_SURVEY'}); } }
+        ]
+      }
+    };
+
+    let currentScenarioId = 1;
+    let currentScenarioStep = 0;
+
+    function switchScenario(id) {
+      currentScenarioId = id;
+      currentScenarioStep = 0;
+      document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', idx + 1 === id);
+      });
+      renderScenarioUI();
+    }
+
+    function runScenarioStep(stepIndex) {
+      const scenario = SCENARIOS[currentScenarioId];
+      if (stepIndex < scenario.steps.length) {
+        scenario.steps[stepIndex].action();
+        currentScenarioStep = stepIndex + 1;
+        renderScenarioUI();
+      }
+    }
+
+    function renderScenarioUI() {
+      const scenario = SCENARIOS[currentScenarioId];
+      document.getElementById('scenarioDesc').textContent = scenario.desc;
+      const stepsContainer = document.getElementById('scenarioSteps');
+      stepsContainer.innerHTML = '';
+
+      scenario.steps.forEach((step, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'step-btn';
+        if (idx < currentScenarioStep) {
+          btn.classList.add('done');
+          btn.innerHTML = `<span>${step.text}</span> <span style="color: #2ea043; font-weight: bold;">✓ Completed</span>`;
+        } else if (idx === currentScenarioStep) {
+          btn.classList.add('current');
+          btn.innerHTML = `<span>${step.text}</span> <span style="color: #58a6ff; font-weight: bold;">→ Next Step</span>`;
+        } else {
+          btn.innerHTML = `<span>${step.text}</span> <span style="color: #8b949e;">Pending</span>`;
+        }
+        btn.onclick = () => runScenarioStep(idx);
+        stepsContainer.appendChild(btn);
+      });
+    }
+
+    // RENDER PRESENTATION
+    function render() {
+      // Badges
+      const netBadge = document.getElementById('netStatusBadge');
+      if (appState.network.isOnline) {
+        netBadge.className = "badge badge-online";
+        netBadge.textContent = "Online (Basecamp Wi-Fi)";
+        document.getElementById('stateNetwork').className = "state-val highlight";
+        document.getElementById('stateNetwork').textContent = `CONNECTED (${appState.network.pendingSyncCount} pending sync)`;
+      } else {
+        netBadge.className = "badge badge-offline";
+        netBadge.textContent = "Offline Edge (PWA)";
+        document.getElementById('stateNetwork').className = "state-val alert";
+        document.getElementById('stateNetwork').textContent = `OFFLINE (${appState.network.pendingSyncCount} cached locally)`;
+      }
+
+      document.getElementById('stateProjectMode').textContent = appState.project.mode;
+      document.getElementById('stateLexiconCount').textContent = `${appState.project.lexicon.length} domain keywords active`;
+
+      const activeSt = appState.traverse.stations.find(st => st.id === appState.traverse.activeStationId);
+      if (activeSt) {
+        document.getElementById('stateActiveStation').textContent = `${activeSt.id} (${activeSt.status})`;
+        document.getElementById('stateGps').textContent = `${activeSt.coordinates.lat.toFixed(4)}°, ${activeSt.coordinates.lon.toFixed(4)}° | Az: ${activeSt.azimuth}°`;
+        document.getElementById('stateAudio').textContent = activeSt.audio ? `${activeSt.audio.durationSec}s recorded memo` : 'No audio';
+        
+        if (activeSt.confidence) {
+          const confPercent = Math.round(activeSt.confidence * 100);
+          document.getElementById('stateConfidence').textContent = `${confPercent}%`;
+          document.getElementById('stateConfidence').className = confPercent < 70 ? "state-val alert" : "state-val highlight";
+        } else {
+          document.getElementById('stateConfidence').textContent = "Pending Extraction";
+          document.getElementById('stateConfidence').className = "state-val";
+        }
+
+        document.getElementById('stateVerification').textContent = activeSt.verified ? "APPROVED ✓" : (activeSt.status === 'FLAGGED_LOW_CONFIDENCE' ? "FLAGGED FOR REVIEW" : "UNVERIFIED");
+        document.getElementById('stateVerification').className = activeSt.verified ? "state-val highlight" : (activeSt.status === 'FLAGGED_LOW_CONFIDENCE' ? "state-val alert" : "state-val");
+      } else {
+        document.getElementById('stateActiveStation').textContent = "None";
+        document.getElementById('stateGps').textContent = "Waiting for fix";
+        document.getElementById('stateAudio').textContent = "No recording";
+        document.getElementById('stateConfidence').textContent = "N/A";
+        document.getElementById('stateVerification').textContent = "N/A";
+      }
+
+      // Station Table
+      document.getElementById('stationCountBadge').textContent = `${appState.traverse.stations.length} stations`;
+      const tbody = document.getElementById('stationTableBody');
+      if (appState.traverse.stations.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 14px;">No stations captured yet. Start a traverse on the left.</td></tr>`;
+      } else {
+        tbody.innerHTML = appState.traverse.stations.map(st => {
+          const lith = st.extracted ? st.extracted.lithology : (st.rawTranscript ? 'Transcribed' : 'Raw Audio');
+          const struct = st.extracted ? `${st.extracted.strike}° / ${st.extracted.dip}° ${st.extracted.dipDirection || ''}` : '-';
+          const sample = st.extracted && st.extracted.sampleId ? st.extracted.sampleId : '-';
+          const conf = st.confidence ? `${Math.round(st.confidence * 100)}%` : '-';
+          
+          let statusBadge = `<span style="color:#d29922;">${st.status}</span>`;
+          if (st.verified) statusBadge = `<span style="color:#2ea043; font-weight:bold;">APPROVED ✓</span>`;
+          else if (st.status === 'FLAGGED_LOW_CONFIDENCE') statusBadge = `<span style="color:#f85149; font-weight:bold;">FLAGGED ⚠</span>`;
+
+          return `
+            <tr style="cursor:pointer;" onclick="dispatch('NEW_STATION', {stationId: '${st.id}'})">
+              <td><strong>${st.id}</strong></td>
+              <td style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${lith}</td>
+              <td>${struct}</td>
+              <td>${sample}</td>
+              <td>${conf}</td>
+              <td>${statusBadge}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // Report Deliverable
+      const reportContainer = document.getElementById('reportContainer');
+      const reportStatus = document.getElementById('stateReportStatus');
+      if (appState.report.archiveZipReady) {
+        reportContainer.style.display = 'block';
+        reportStatus.textContent = `COMPILED (${appState.report.stationCount} stations)`;
+        reportStatus.className = "state-val highlight";
+
+        const preview = document.getElementById('reportPreviewContent');
+        const approvedSts = appState.traverse.stations.filter(s => s.verified);
+        
+        preview.innerHTML = `
+          <h3>${appState.report.title}</h3>
+          <p><strong>Deliverable Package:</strong> <code>Report_${appState.project.mode}.docx</code> + <code>Archive_${Date.now()}.zip</code></p>
+          <p><strong>Design Theme:</strong> ${appState.report.themeUsed} | <strong>Compiled:</strong> ${appState.report.compiledAt} | <strong>Lead Geologist:</strong> Verified &amp; Signed</p>
+          <hr style="margin: 10px 0; border: none; border-top: 1px solid #d0d7de;">
+          <h4 style="margin: 8px 0;">1. Traverse Summary &amp; Station Log</h4>
+          <table>
+            <thead>
+              <tr><th>Station</th><th>Lithology Description</th><th>Orientation</th><th>Sample Bag</th></tr>
+            </thead>
+            <tbody>
+              ${approvedSts.map(s => `
+                <tr>
+                  <td><strong>${s.id}</strong></td>
+                  <td>${s.extracted ? s.extracted.lithology : 'N/A'}</td>
+                  <td>${s.extracted ? `${s.extracted.strike}° / ${s.extracted.dip}°` : 'N/A'}</td>
+                  <td><code>${s.extracted && s.extracted.sampleId ? s.extracted.sampleId : 'None'}</code></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <h4 style="margin: 12px 0 6px 0;">2. Figure Plates &amp; Raw Media Audit</h4>
+          <p><em>Included in ZIP Archive:</em> <code>${approvedSts.reduce((acc, s) => acc + s.photos.length, 0)} photo plates</code> with scale bars and compass azimuths, <code>${approvedSts.length} raw .wav files</code>, <code>spatial_data.geojson</code>, and <code>stations.csv</code>.</p>
+        `;
+      } else {
+        reportContainer.style.display = 'none';
+        reportStatus.textContent = "Not compiled";
+        reportStatus.className = "state-val";
+      }
+
+      // Audit Log
+      const logBox = document.getElementById('eventLog');
+      logBox.innerHTML = appState.auditLog.map(entry => `
+        <div class="log-entry">
+          <span class="log-time">[${entry.time}]</span>
+          <span>${entry.msg}</span>
+        </div>
+      `).join('');
+    }
+
+    // Initialize
+    switchScenario(1);
+    render();
+  </script>
+</body>
+</html>
