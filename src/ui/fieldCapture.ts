@@ -24,6 +24,16 @@ export class FieldCaptureApp {
   private spatialTracker: SpatialTrackerCanvas | null = null;
   private userCoordinates: Coordinates | null = null;
 
+  public onSwitchToOffice?: () => void;
+
+  public getState(): FieldToReportState {
+    return this.state;
+  }
+
+  public setState(next: FieldToReportState): void {
+    this.state = next;
+  }
+
   constructor(container: HTMLElement) {
     this.container = container;
   }
@@ -196,6 +206,9 @@ export class FieldCaptureApp {
             <button id="btnHeaderSync" class="badge badge-neutral tabular-nums" style="cursor: pointer; background: var(--geo-slate); border-color: var(--ochre-amber); color: #fff;" title="Click to sync queue to office database">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
               <span>${this.state.network.pendingSyncCount} sync</span>
+            </button>
+            <button id="btnHeaderOffice" class="badge badge-neutral" style="cursor: pointer; background: var(--geo-slate); border-color: var(--azurite-blue); color: #fff;" title="Switch to Office Verification Workbench">
+              💻 Office
             </button>
           </div>
         </header>
@@ -422,6 +435,13 @@ export class FieldCaptureApp {
         toast.success(`Synced & transcribed ${res.syncedCount} station(s) with Whisper!`);
       } catch (err: any) {
         toast.warning(err.message);
+      }
+    });
+
+    // Office Workbench Switcher
+    document.getElementById('btnHeaderOffice')?.addEventListener('click', () => {
+      if (this.onSwitchToOffice) {
+        this.onSwitchToOffice();
       }
     });
 

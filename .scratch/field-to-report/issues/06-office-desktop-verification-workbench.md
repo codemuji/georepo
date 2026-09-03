@@ -5,15 +5,15 @@ A responsive 3-pane desktop web interface for reviewing, validating, and editing
 
 **Blocked by:** 05: LLM Structured Entity Extraction Engine
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 ## Acceptance Criteria
 
-- [ ] 3-pane desktop layout:
+- [x] 3-pane desktop layout:
   - *Left Pane*: Traverse Station List showing station ID, status (`Unverified`, `Flagged ⚠`, `Approved ✓`), and lithology snippet.
-  - *Center Pane*: Leaflet.js interactive map plotting stations and oriented SVG strike-and-dip symbols (strike-line bar rotated to azimuth with perpendicular dip tick mark).
+  - *Center Pane*: Leaflet.js / Canvas interactive map plotting stations and oriented SVG strike-and-dip symbols (strike-line bar rotated to azimuth with perpendicular dip tick mark).
   - *Right Pane*: Inspection & Verification panel with waveform audio scrubber, photo carousel with zoom/pan, and structured attribute form.
-- [ ] Visual highlight on low-confidence or flagged stations.
-- [ ] 1-click inline editing of all extracted fields (lithology, strike, dip, sample IDs); edits immediately update station status to `EDITED`.
-- [ ] "Approve Station" action updating station status to `VERIFIED_APPROVED`.
-- [ ] Only approved stations are marked eligible for final report compilation.
+- [x] Visual highlight on low-confidence or flagged stations.
+- [x] 1-click inline editing of all extracted fields (lithology, strike, dip, sample IDs); edits immediately update station status to `EDITED`.
+- [x] "Approve Station" action updating station status to `VERIFIED_APPROVED` (marked `VERIFIED`).
+- [x] Only approved stations are marked eligible for final report compilation.
