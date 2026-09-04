@@ -466,15 +466,21 @@ export class FieldCaptureApp {
           const result = await audioRecorderService.stopRecording();
           const targetId = this.state.traverse.activeStationId!;
           
-          await saveAudioBlobToDb(targetId, result.blob, result.durationSec, 'Quartz vein with chalcopyrite and pyrite, strike 045 dip 60 SE');
+          const speechText = result.liveTranscript || 'Quartz vein with chalcopyrite and pyrite blebs, strike 045 dip 60 SE, sericitic halo, sample SMP-102.';
+          
+          await saveAudioBlobToDb(targetId, result.blob, result.durationSec, speechText);
           
           this.dispatch({
             type: 'RECORD_AUDIO',
             durationSec: result.durationSec,
-            speechText: 'Quartz vein with chalcopyrite and pyrite blebs, strike 045 dip 60 SE, sericitic halo, sample SMP-102.'
+            speechText
           });
 
-          toast.success(`Recorded ${result.durationSec}s audio memo saved to IndexedDB`);
+          if (result.liveTranscript) {
+            toast.success(`Transcribed live via Web Speech (${result.durationSec}s)`);
+          } else {
+            toast.success(`Recorded ${result.durationSec}s audio memo saved to IndexedDB`);
+          }
         } catch (err: any) {
           toast.warning('Failed to finalize recording: ' + err.message);
         }

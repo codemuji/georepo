@@ -1,10 +1,13 @@
 export interface RecordingResult {
   blob: Blob;
   durationSec: number;
+  liveTranscript?: string;
 }
 
 export class AudioRecorderService {
   private mediaRecorder: MediaRecorder | null = null;
+  private recognition: any = null;
+  private liveTranscript: string = '';
   private audioChunks: Blob[] = [];
   private startTime: number = 0;
   private timerInterval: any = null;
@@ -55,7 +58,32 @@ export class AudioRecorderService {
 
     this.startTime = Date.now();
     this.recording = true;
+    this.liveTranscript = '';
     this.mediaRecorder.start(250); // Slice every 250ms
+
+    // Start concurrent in-browser speech recognition (Zero API key needed)
+    try {
+      const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRec) {
+        this.recognition = new SpeechRec();
+        this.recognition.continuous = true;
+        this.recognition.interimResults = false;
+        this.recognition.lang = 'en-US';
+        this.recognition.onresult = (e: any) => {
+          for (let i = e.resultIndex; i < e.results.length; ++i) {
+            if (e.results[i].isFinal) {
+              const text = e.results[i][0].transcript.trim();
+              if (text) {
+                this.liveTranscript = (this.liveTranscript + ' ' + text).trim();
+              }
+            }
+          }
+        };
+        this.recognition.start();
+      }
+    } catch {
+      // Speech recognition not supported or mic busy
+    }
 
     this.timerInterval = setInterval(() => {
       if (this.onTickCallback) {
@@ -73,16 +101,25 @@ export class AudioRecorderService {
         return;
       }
 
+      if (this.recognition) {
+        try {
+          this.recognition.stop();
+        } catch {
+          // Ignore
+        }
+      }
+
       this.mediaRecorder.onstop = () => {
         const durationSec = Math.max(1, Math.floor((Date.now() - this.startTime) / 1000));
         const mimeType = this.mediaRecorder?.mimeType || 'audio/webm';
         const blob = new Blob(this.audioChunks, { type: mimeType });
+        const finalLiveTranscript = this.liveTranscript.trim();
 
         // Stop all tracks to release mic hardware
         this.mediaRecorder?.stream.getTracks().forEach((track) => track.stop());
 
         this.cleanup();
-        resolve({ blob, durationSec });
+        resolve({ blob, durationSec, liveTranscript: finalLiveTranscript || undefined });
       };
 
       this.mediaRecorder.stop();
@@ -90,6 +127,14 @@ export class AudioRecorderService {
   }
 
   private cleanup(): void {
+    if (this.recognition) {
+      try {
+        this.recognition.stop();
+      } catch {
+        // Ignore
+      }
+      this.recognition = null;
+    }
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;

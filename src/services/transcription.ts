@@ -5,7 +5,9 @@
 
 export interface TranscriptionOptions {
   apiKey?: string;
+  provider?: 'openai' | 'groq' | 'custom';
   endpoint?: string;
+  model?: string;
   lexicon?: string[];
   language?: string;
 }
@@ -38,18 +40,29 @@ export class WhisperTranscriptionService {
     audioBlob: Blob,
     options: TranscriptionOptions = {}
   ): Promise<string> {
-    const envApiKey = typeof import.meta !== 'undefined' && import.meta.env
+    const groqKey = typeof import.meta !== 'undefined' && import.meta.env
+      ? (import.meta.env.VITE_GROQ_API_KEY as string)
+      : '';
+    const openAiKey = typeof import.meta !== 'undefined' && import.meta.env
       ? (import.meta.env.VITE_OPENAI_API_KEY as string)
       : '';
-    const apiKey = options.apiKey || envApiKey || '';
-    const endpoint = options.endpoint || 'https://api.openai.com/v1/audio/transcriptions';
+
+    const isGroq = (options.provider === 'groq') || (!!groqKey && !options.apiKey?.startsWith('sk-proj'));
+    const apiKey = options.apiKey || (isGroq ? groqKey : openAiKey) || '';
+
+    // Auto-select free Groq Whisper endpoint or standard OpenAI endpoint
+    const endpoint = options.endpoint || (isGroq
+      ? 'https://api.groq.com/openai/v1/audio/transcriptions'
+      : 'https://api.openai.com/v1/audio/transcriptions');
+
+    const model = options.model || (isGroq ? 'whisper-large-v3' : 'whisper-1');
     const prompt = this.buildWhisperPrompt(options.lexicon);
 
-    // If API key is present, execute actual multipart request to Whisper API
+    // If API key is present, execute multipart request
     if (apiKey) {
       const formData = new FormData();
       formData.append('file', audioBlob, 'field_recording.webm');
-      formData.append('model', 'whisper-1');
+      formData.append('model', model);
       formData.append('prompt', prompt);
       formData.append('temperature', '0.0'); // Deterministic decoding
       if (options.language) {

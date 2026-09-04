@@ -11,7 +11,7 @@ export interface ExtractionOptions {
   apiKey?: string;
   endpoint?: string;
   model?: string;
-  provider?: 'openrouter' | 'nvidia' | 'local';
+  provider?: 'openrouter' | 'nvidia' | 'groq' | 'gemini' | 'local';
 }
 
 export interface RawParsedDomainAttributes {
@@ -47,21 +47,37 @@ export class LlmExtractionService {
     lexicon: string[] = [],
     options: ExtractionOptions = {}
   ): Promise<ExtractionResult> {
-    const provider = options.provider || 'openrouter';
-    const envApiKey = typeof import.meta !== 'undefined' && import.meta.env
-      ? ((provider === 'nvidia' ? import.meta.env.VITE_NVIDIA_API_KEY : import.meta.env.VITE_OPENROUTER_API_KEY) as string)
-      : '';
+    const groqKey = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_GROQ_API_KEY as string) : '';
+    const geminiKey = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_GEMINI_API_KEY as string) : '';
+    const nvidiaKey = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_NVIDIA_API_KEY as string) : '';
+    const openrouterKey = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_OPENROUTER_API_KEY as string) : '';
+
+    let provider = options.provider;
+    if (!provider) {
+      if (groqKey) provider = 'groq';
+      else if (geminiKey) provider = 'gemini';
+      else if (nvidiaKey) provider = 'nvidia';
+      else if (openrouterKey) provider = 'openrouter';
+      else provider = 'local';
+    }
+
+    let envApiKey = '';
+    if (provider === 'groq') envApiKey = groqKey;
+    else if (provider === 'gemini') envApiKey = geminiKey;
+    else if (provider === 'nvidia') envApiKey = nvidiaKey;
+    else if (provider === 'openrouter') envApiKey = openrouterKey;
+
     const apiKey = options.apiKey || envApiKey || '';
     const extraFlags: string[] = [];
 
-    // If an API key is provided, execute external LLM completion (OpenRouter / NVIDIA NIM)
-    if (apiKey) {
+    // If an API key is provided, execute external LLM completion
+    if (apiKey && provider !== 'local') {
       try {
         const responseJson = await this.callLlmApi(rawSpeechText, mode, lexicon, apiKey, provider, options);
         return this.validateAndScore(responseJson, mode);
       } catch (err: any) {
         console.warn('LLM API call failed, falling back to local domain parser:', err);
-        extraFlags.push(`Remote LLM API notice: ${err?.message || 'Connection failed'}; fell back to rule parser`);
+        extraFlags.push(`Remote LLM API notice (${provider}): ${err?.message || 'Connection failed'}; fell back to rule parser`);
       }
     }
 
@@ -82,16 +98,25 @@ export class LlmExtractionService {
     mode: ProjectMode,
     lexicon: string[],
     apiKey: string,
-    provider: 'openrouter' | 'nvidia' | 'local',
+    provider: 'openrouter' | 'nvidia' | 'groq' | 'gemini' | 'local',
     options: ExtractionOptions
   ): Promise<any> {
-    const endpoint = options.endpoint || (provider === 'nvidia' 
-      ? 'https://integrate.api.nvidia.com/v1/chat/completions'
-      : 'https://openrouter.ai/api/v1/chat/completions');
+    let endpoint = options.endpoint;
+    let model = options.model;
 
-    const model = options.model || (provider === 'nvidia'
-      ? 'meta/llama-3.3-70b-instruct'
-      : 'anthropic/claude-3.5-sonnet');
+    if (provider === 'groq') {
+      endpoint = endpoint || 'https://api.groq.com/openai/v1/chat/completions';
+      model = model || 'llama-3.3-70b-versatile';
+    } else if (provider === 'gemini') {
+      endpoint = endpoint || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+      model = model || 'gemini-2.0-flash';
+    } else if (provider === 'nvidia') {
+      endpoint = endpoint || 'https://integrate.api.nvidia.com/v1/chat/completions';
+      model = model || 'meta/llama-3.3-70b-instruct';
+    } else {
+      endpoint = endpoint || 'https://openrouter.ai/api/v1/chat/completions';
+      model = model || 'meta-llama/llama-3.3-70b-instruct:free';
+    }
 
     const systemPrompt = this.getSystemPromptForMode(mode, lexicon);
 
