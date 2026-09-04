@@ -47,10 +47,11 @@ export class LlmExtractionService {
     lexicon: string[] = [],
     options: ExtractionOptions = {}
   ): Promise<ExtractionResult> {
-    const groqKey = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_GROQ_API_KEY as string) : '';
-    const geminiKey = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_GEMINI_API_KEY as string) : '';
-    const nvidiaKey = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_NVIDIA_API_KEY as string) : '';
-    const openrouterKey = typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_OPENROUTER_API_KEY as string) : '';
+    const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+    const groqKey = !isTest && typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_GROQ_API_KEY as string) : '';
+    const geminiKey = !isTest && typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_GEMINI_API_KEY as string) : '';
+    const nvidiaKey = !isTest && typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_NVIDIA_API_KEY as string) : '';
+    const openrouterKey = !isTest && typeof import.meta !== 'undefined' && import.meta.env ? (import.meta.env.VITE_OPENROUTER_API_KEY as string) : '';
 
     let provider = options.provider;
     if (!provider) {
@@ -106,7 +107,7 @@ export class LlmExtractionService {
 
     if (provider === 'groq') {
       endpoint = endpoint || 'https://api.groq.com/openai/v1/chat/completions';
-      model = model || 'llama-3.3-70b-versatile';
+      model = model || 'qwen/qwen3.8-27b';
     } else if (provider === 'gemini') {
       endpoint = endpoint || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
       model = model || 'gemini-2.0-flash';

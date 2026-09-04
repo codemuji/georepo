@@ -40,10 +40,11 @@ export class WhisperTranscriptionService {
     audioBlob: Blob,
     options: TranscriptionOptions = {}
   ): Promise<string> {
-    const groqKey = typeof import.meta !== 'undefined' && import.meta.env
+    const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+    const groqKey = !isTest && typeof import.meta !== 'undefined' && import.meta.env
       ? (import.meta.env.VITE_GROQ_API_KEY as string)
       : '';
-    const openAiKey = typeof import.meta !== 'undefined' && import.meta.env
+    const openAiKey = !isTest && typeof import.meta !== 'undefined' && import.meta.env
       ? (import.meta.env.VITE_OPENAI_API_KEY as string)
       : '';
 
