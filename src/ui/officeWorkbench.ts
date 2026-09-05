@@ -4,9 +4,15 @@ import {
 import { FieldToReportState, Station } from '../domain/types';
 import { SpatialProjection, drawStrikeDipSymbol } from './spatialTracker';
 import { llmExtractionService } from '../services/extraction';
+import { whisperTranscriptionService } from '../services/transcription';
 import { generateGeologicalReportDocx, downloadDocxBlob } from '../services/reportGenerator';
 import { exportProjectArchiveZip, downloadZipBlob } from '../services/archiveExporter';
-import { getAudioForStationFromDb, getPhotosForStationFromDb } from '../storage/db';
+import {
+  getAudioForStationFromDb,
+  getPhotosForStationFromDb,
+  saveAudioBlobToDb,
+  saveStationToDb
+} from '../storage/db';
 import { toast } from './toast';
 
 export interface OfficeWorkbenchOptions {
@@ -223,7 +229,14 @@ export class OfficeWorkbench {
 
         <!-- Audio Dictation Player -->
         <div class="inspection-card">
-          <div class="card-section-label">Field Audio Observation (${audio ? `${audio.durationSec}s` : 'No Audio'})</div>
+          <div class="card-section-label" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Field Audio Observation (${audio ? `${audio.durationSec}s` : 'No Audio'})</span>
+            ${audio ? `
+              <button id="btnTranscribeWhisper" class="workbench-btn" style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--ochre-amber); color: var(--ochre-amber); font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;">
+                <span>⚡ Transcribe with Groq Whisper</span>
+              </button>
+            ` : ''}
+          </div>
           <div class="audio-player-deck" style="flex-direction: column; align-items: stretch; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <button id="btnPlayAudio" class="audio-play-btn">
@@ -235,15 +248,12 @@ export class OfficeWorkbench {
             </div>
             <audio id="stationAudioPlayer" controls style="width: 100%; height: 28px; filter: invert(0.8) hue-rotate(180deg); margin-top: 2px;"></audio>
           </div>
-          ${audio?.rawSpeechText ? `
-            <div class="raw-speech-transcript">
-              &ldquo;${audio.rawSpeechText}&rdquo;
-            </div>
-          ` : `
-            <div style="font-size: 12px; color: var(--strata-muted); font-style: italic; margin-top: 6px;">
-              No raw transcript recorded.
-            </div>
-          `}
+          <div style="margin-top: 8px;">
+            <label for="speechTranscriptEditor" style="font-size: 11px; color: var(--strata-muted); display: block; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+              Geological Voice Transcript (Editable)
+            </label>
+            <textarea id="speechTranscriptEditor" class="form-input" rows="3" style="width: 100%; resize: vertical; font-size: 12px; line-height: 1.5; font-family: inherit;" placeholder="Record an audio memo in the field or edit transcribed text here...">${audio?.rawSpeechText || ''}</textarea>
+          </div>
         </div>
 
         <!-- Specimen Photo Deck -->
@@ -592,7 +602,127 @@ export class OfficeWorkbench {
       });
     }
 
-    // Load actual outcrop photos from IndexedDB if available
+    // Editable speech transcript handler
+    const transcriptEditor = document.getElementById('speechTranscriptEditor') as HTMLTextAreaElement;
+    if (transcriptEditor && activeStation) {
+      transcriptEditor.addEventListener('change', async () => {
+        const targetId = this.state.traverse.activeStationId || this.state.traverse.stations[0]?.id;
+        if (!targetId) return;
+        const newText = transcriptEditor.value.trim();
+
+        const currentStation = this.state.traverse.stations.find((s) => s.id === targetId);
+        if (currentStation) {
+          const updatedAudio = currentStation.audio
+            ? { ...currentStation.audio, rawSpeechText: newText }
+            : { durationSec: 0, rawSpeechText: newText };
+          const updatedStation = { ...currentStation, audio: updatedAudio };
+          await saveStationToDb(updatedStation);
+          this.state = {
+            ...this.state,
+            traverse: {
+              ...this.state.traverse,
+              stations: this.state.traverse.stations.map((s) => s.id === targetId ? updatedStation : s)
+            }
+          };
+          this.onStateChange(this.state);
+          toast.success('Updated speech transcript');
+        }
+      });
+    }
+
+    // Direct Groq Whisper transcription button handler
+    document.getElementById('btnTranscribeWhisper')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const targetId = this.state.traverse.activeStationId || this.state.traverse.stations[0]?.id;
+      if (!targetId) return;
+
+      const btn = document.getElementById('btnTranscribeWhisper') as HTMLButtonElement;
+      const originalHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.innerHTML = '<span class="transcribing-pulse">⚡ Transcribing...</span>';
+        btn.disabled = true;
+      }
+
+      try {
+        toast.info('Loading audio recording from offline storage...');
+        const audioRec = await getAudioForStationFromDb(targetId);
+        if (!audioRec || !audioRec.blob) {
+          toast.warning('No stored audio recording found for this station in IndexedDB');
+          return;
+        }
+
+        toast.info('Sending audio to Groq Whisper Large V3...');
+        const transcribedText = await whisperTranscriptionService.transcribe(audioRec.blob, {
+          lexicon: this.state.project.lexicon
+        });
+
+        if (!transcribedText || !transcribedText.trim()) {
+          toast.warning('Whisper returned empty transcript. Check microphone input audio level.');
+          return;
+        }
+
+        const cleanedText = transcribedText.trim();
+        toast.success('Transcribed via Groq Whisper!');
+
+        // Update IndexedDB audio store
+        await saveAudioBlobToDb(targetId, audioRec.blob, audioRec.durationSec || 0, cleanedText);
+
+        // Update in-memory state & station record in IndexedDB
+        const currentStation = this.state.traverse.stations.find((s) => s.id === targetId);
+        if (currentStation) {
+          const updatedAudio = {
+            durationSec: audioRec.durationSec || currentStation.audio?.durationSec || 0,
+            blobUrl: currentStation.audio?.blobUrl,
+            rawSpeechText: cleanedText
+          };
+          const updatedStation = { ...currentStation, audio: updatedAudio };
+          await saveStationToDb(updatedStation);
+          this.state = {
+            ...this.state,
+            traverse: {
+              ...this.state.traverse,
+              stations: this.state.traverse.stations.map((s) => s.id === targetId ? updatedStation : s)
+            }
+          };
+          this.onStateChange(this.state);
+        }
+
+        // Update textarea directly
+        const editor = document.getElementById('speechTranscriptEditor') as HTMLTextAreaElement;
+        if (editor) {
+          editor.value = cleanedText;
+        }
+
+        // Automatically trigger LLM geological entity extraction
+        toast.info('Extracting geological attributes from new transcript...');
+        const res = await llmExtractionService.extractFromSpeech(
+          cleanedText,
+          this.state.project.mode,
+          this.state.project.lexicon
+        );
+
+        this.dispatch({
+          type: 'RUN_AI_EXTRACTION',
+          stationId: targetId,
+          customAttributes: res.extracted,
+          confidence: res.confidence
+        });
+
+        if (res.status === 'FLAGGED_LOW_CONFIDENCE') {
+          toast.warning(`Station flagged: ${res.flags.join('; ')}`);
+        } else {
+          toast.success(`Extracted attributes with ${(res.confidence * 100).toFixed(0)}% confidence`);
+        }
+      } catch (err: any) {
+        console.error('Office Whisper transcription error:', err);
+        toast.warning('Whisper transcription notice: ' + (err?.message || 'Failed to transcribe'));
+      } finally {
+        if (btn) {
+          btn.innerHTML = originalHtml;
+          btn.disabled = false;
+        }
+      }
+    });
     if (activeStation && activeStation.photos.length > 0) {
       getPhotosForStationFromDb(activeStation.id).then((photoRecords) => {
         photoRecords.forEach((pr, pIdx) => {

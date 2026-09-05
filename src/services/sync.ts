@@ -3,7 +3,8 @@ import {
   getAudioForStationFromDb,
   getPhotosForStationFromDb,
   saveStationToDb,
-  markStationSyncedInDb
+  markStationSyncedInDb,
+  saveAudioBlobToDb
 } from '../storage/db';
 import { whisperTranscriptionService } from './transcription';
 import { networkMonitor, NetworkMonitorService } from './network';
@@ -101,7 +102,11 @@ export class SyncQueueService {
           const photoRecords = await getPhotosForStationFromDb(station.id, effectiveDb);
 
           // If raw audio exists but hasn't been transcribed yet, run Whisper with lexicon priming
-          if (audioRecord && (!station.audio?.rawSpeechText || station.audio.rawSpeechText === 'Freeform field audio observation recorded on outcrop')) {
+          const isPendingTranscription = !station.audio?.rawSpeechText ||
+            station.audio.rawSpeechText.includes('Awaiting office transcription') ||
+            station.audio.rawSpeechText === 'Freeform field audio observation recorded on outcrop';
+
+          if (audioRecord && isPendingTranscription) {
             this.notify({
               current: stepNum,
               total,
@@ -113,12 +118,16 @@ export class SyncQueueService {
               lexicon
             });
 
-            // Update station audio record
-            station.audio = {
-              durationSec: audioRecord.durationSec || 15,
-              blobUrl: audioRecord.id,
-              rawSpeechText: transcript
-            };
+            if (transcript && transcript.trim()) {
+              // Update station audio record
+              station.audio = {
+                durationSec: audioRecord.durationSec || 15,
+                blobUrl: audioRecord.id,
+                rawSpeechText: transcript.trim()
+              };
+
+              await saveAudioBlobToDb(station.id, audioRecord.blob, audioRecord.durationSec || 0, transcript.trim(), effectiveDb);
+            }
           }
 
           // Link photo count metadata

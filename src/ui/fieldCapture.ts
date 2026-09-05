@@ -16,6 +16,8 @@ import { toast } from './toast';
 import { SpatialTrackerCanvas } from './spatialTracker';
 import { networkMonitor } from '../services/network';
 import { syncQueueService } from '../services/sync';
+import { whisperTranscriptionService } from '../services/transcription';
+import { llmExtractionService } from '../services/extraction';
 
 export class FieldCaptureApp {
   private state: FieldToReportState = { ...INITIAL_FIELD_TO_REPORT_STATE };
@@ -462,27 +464,71 @@ export class FieldCaptureApp {
       }
 
       if (audioRecorderService.isRecording()) {
+        const btn = document.getElementById('btnVoiceMemo') as HTMLButtonElement;
+        if (btn) {
+          btn.innerHTML = '<span class="transcribing-pulse">⚡ Transcribing via Groq...</span>';
+          btn.disabled = true;
+        }
+
         try {
           const result = await audioRecorderService.stopRecording();
           const targetId = this.state.traverse.activeStationId!;
-          
-          const speechText = result.liveTranscript || 'Quartz vein with chalcopyrite and pyrite blebs, strike 045 dip 60 SE, sericitic halo, sample SMP-102.';
-          
+          let speechText = result.liveTranscript || '';
+
+          // If online and API key exists (e.g. VITE_GROQ_API_KEY), transcribe immediately
+          const isOnline = this.state.network.isOnline;
+          const hasApiKey = typeof import.meta !== 'undefined' && import.meta.env &&
+            (import.meta.env.VITE_GROQ_API_KEY || import.meta.env.VITE_OPENAI_API_KEY);
+
+          if (isOnline && hasApiKey) {
+            toast.info('Sending audio to Groq Whisper Large V3...');
+            try {
+              const whisperText = await whisperTranscriptionService.transcribe(result.blob, {
+                lexicon: this.state.project.lexicon
+              });
+              if (whisperText && whisperText.trim()) {
+                speechText = whisperText.trim();
+                toast.success('Transcribed via Groq Whisper!');
+              }
+            } catch (err: any) {
+              console.warn('Groq transcription notice:', err);
+              toast.warning('Whisper notice: ' + (err?.message || 'Audio saved'));
+            }
+          }
+
+          if (!speechText) {
+            speechText = 'Audio memo recorded (Awaiting office transcription)';
+          }
+
           await saveAudioBlobToDb(targetId, result.blob, result.durationSec, speechText);
-          
+
           this.dispatch({
             type: 'RECORD_AUDIO',
             durationSec: result.durationSec,
             speechText
           });
 
-          if (result.liveTranscript) {
-            toast.success(`Transcribed live via Web Speech (${result.durationSec}s)`);
-          } else {
-            toast.success(`Recorded ${result.durationSec}s audio memo saved to IndexedDB`);
+          // Auto-run LLM extraction if real speech was transcribed
+          if (speechText && speechText !== 'Audio memo recorded (Awaiting office transcription)') {
+            llmExtractionService.extractFromSpeech(
+              speechText,
+              this.state.project.mode,
+              this.state.project.lexicon
+            ).then((res) => {
+              this.dispatch({
+                type: 'RUN_AI_EXTRACTION',
+                stationId: targetId,
+                customAttributes: res.extracted,
+                confidence: res.confidence
+              });
+              toast.success(`Extracted geological attributes (${(res.confidence * 100).toFixed(0)}% confidence)`);
+            }).catch(() => {});
           }
+
+          this.render();
         } catch (err: any) {
           toast.warning('Failed to finalize recording: ' + err.message);
+          this.render();
         }
       } else {
         try {
@@ -498,7 +544,7 @@ export class FieldCaptureApp {
           toast.info('Recording started. Speak your field observations freely...');
           this.render();
         } catch (err: any) {
-          this.simulateVoiceMemo();
+          toast.warning('Microphone error: ' + (err?.message || 'Access denied or no microphone found'));
         }
       }
     });
@@ -573,19 +619,6 @@ export class FieldCaptureApp {
 
       toast.success(`Logged mock station with strike 045°/60°`);
     });
-  }
-
-  private simulateVoiceMemo(): void {
-    const targetId = this.state.traverse.activeStationId;
-    if (!targetId) return;
-
-    this.dispatch({
-      type: 'RECORD_AUDIO',
-      durationSec: 16,
-      speechText: 'Quartz vein with chalcopyrite and pyrite blebs, strike 045 dip 60 SE, sericitic halo, sample SMP-102.'
-    });
-
-    toast.success('Attached simulated 16s audio memo for outcrop');
   }
 
   private getCompassRose(deg: number): string {

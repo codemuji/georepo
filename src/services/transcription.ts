@@ -62,7 +62,15 @@ export class WhisperTranscriptionService {
     // If API key is present, execute multipart request
     if (apiKey) {
       const formData = new FormData();
-      formData.append('file', audioBlob, 'field_recording.webm');
+      let fileName = 'field_recording.webm';
+      if (audioBlob.type.includes('mp4') || audioBlob.type.includes('m4a')) {
+        fileName = 'field_recording.mp4';
+      } else if (audioBlob.type.includes('ogg')) {
+        fileName = 'field_recording.ogg';
+      } else if (audioBlob.type.includes('wav')) {
+        fileName = 'field_recording.wav';
+      }
+      formData.append('file', audioBlob, fileName);
       formData.append('model', model);
       formData.append('prompt', prompt);
       formData.append('temperature', '0.0'); // Deterministic decoding

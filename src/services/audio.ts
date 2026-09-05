@@ -1,6 +1,7 @@
 export interface RecordingResult {
   blob: Blob;
   durationSec: number;
+  mimeType: string;
   liveTranscript?: string;
 }
 
@@ -119,7 +120,7 @@ export class AudioRecorderService {
         this.mediaRecorder?.stream.getTracks().forEach((track) => track.stop());
 
         this.cleanup();
-        resolve({ blob, durationSec, liveTranscript: finalLiveTranscript || undefined });
+        resolve({ blob, durationSec, mimeType, liveTranscript: finalLiveTranscript || undefined });
       };
 
       this.mediaRecorder.stop();

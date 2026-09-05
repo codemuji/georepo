@@ -1250,3 +1250,42 @@ body {
   color: var(--strata-muted);
   font-size: 13px;
 }
+
+/* Speech Transcription Pulse Animation */
+.transcribing-pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  animation: pulse-glow 1.5s ease-in-out infinite;
+  color: var(--ochre-amber);
+  font-weight: 600;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  }
+  50% {
+    opacity: 0.55;
+    text-shadow: 0 0 2px rgba(245, 158, 11, 0.2);
+  }
+}
+
+#speechTranscriptEditor {
+  min-height: 72px;
+  background: rgba(15, 20, 28, 0.8);
+  border: 1px solid var(--geo-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #f1f5f9;
+  font-size: 12px;
+  line-height: 1.5;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#speechTranscriptEditor:focus {
+  outline: none;
+  border-color: var(--ochre-amber);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
