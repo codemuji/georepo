@@ -2,7 +2,7 @@ import {
   fieldToReportReducer
 } from '../domain/reducer';
 import { FieldToReportState, Station } from '../domain/types';
-import { SpatialProjection, drawStrikeDipSymbol } from './spatialTracker';
+import { SpatialTrackerCanvas } from './spatialTracker';
 import { llmExtractionService } from '../services/extraction';
 import { whisperTranscriptionService } from '../services/transcription';
 import { generateGeologicalReportDocx, downloadDocxBlob } from '../services/reportGenerator';
@@ -28,12 +28,7 @@ export class OfficeWorkbench {
   private onStateChange: (newState: FieldToReportState) => void;
   private onSwitchToFieldMode: () => void;
   private statusFilter: 'ALL' | 'FLAGGED' | 'APPROVED' | 'UNVERIFIED' = 'ALL';
-  private mapCanvas: HTMLCanvasElement | null = null;
-  private mapCtx: CanvasRenderingContext2D | null = null;
-  private projection: SpatialProjection;
-  private zoom: number = 1.0;
-  private panX: number = 0;
-  private panY: number = 0;
+  private spatialTracker: SpatialTrackerCanvas | null = null;
   private isAudioPlaying: boolean = false;
 
   constructor(options: OfficeWorkbenchOptions) {
@@ -41,7 +36,6 @@ export class OfficeWorkbench {
     this.state = options.state;
     this.onStateChange = options.onStateChange;
     this.onSwitchToFieldMode = options.onSwitchToFieldMode;
-    this.projection = new SpatialProjection();
   }
 
   public updateState(newState: FieldToReportState): void {
@@ -170,6 +164,18 @@ export class OfficeWorkbench {
 
             <div class="map-canvas-viewport" id="workbenchMapContainer">
               <canvas id="workbenchMapCanvas" class="workbench-map-canvas"></canvas>
+              ${stations.length === 0 ? `
+                <div class="map-empty-overlay">
+                  <div class="empty-icon" style="font-size: 28px; margin-bottom: 4px;">🗺</div>
+                  <h4 style="font-size: 15px; font-weight: 700; color: #fff;">GIS Vector Map Ready</h4>
+                  <p style="font-size: 12px; color: var(--strata-muted); line-height: 1.4; margin: 4px 0 14px;">
+                    No field traverse stations recorded in local database yet. Switch to Field PWA to record outcrops or load a sample traverse.
+                  </p>
+                  <button id="btnLoadSampleTraverse" class="workbench-btn" style="background: var(--ochre-amber); color: #000; font-weight: 700; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 14px rgba(217, 119, 6, 0.4);">
+                    + Load Sample Traverse (3 Stations)
+                  </button>
+                </div>
+              ` : ''}
             </div>
           </main>
 
@@ -364,120 +370,42 @@ export class OfficeWorkbench {
 
   private initMapCanvas(): void {
     const container = document.getElementById('workbenchMapContainer');
-    this.mapCanvas = document.getElementById('workbenchMapCanvas') as HTMLCanvasElement;
-    if (!container || !this.mapCanvas) return;
+    const canvas = document.getElementById('workbenchMapCanvas') as HTMLCanvasElement;
+    if (!container || !canvas) return;
 
-    this.mapCtx = this.mapCanvas.getContext('2d');
-    if (!this.mapCtx) return;
-
-    const rect = container.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const width = rect.width || 500;
-    const height = rect.height || 450;
-
-    this.mapCanvas.width = width * dpr;
-    this.mapCanvas.height = height * dpr;
-    this.mapCanvas.style.width = `${width}px`;
-    this.mapCanvas.style.height = `${height}px`;
-
-    this.mapCtx.scale(dpr, dpr);
-
-    // Center projection around active or first station
-    const stations = this.state.traverse.stations;
-    if (stations.length > 0) {
-      this.projection.setOrigin(stations[0].coordinates.lat, stations[0].coordinates.lon);
+    if (this.spatialTracker) {
+      this.spatialTracker.destroy();
     }
 
-    this.drawMap();
-  }
-
-  private drawMap(): void {
-    if (!this.mapCanvas || !this.mapCtx) return;
-    const width = parseFloat(this.mapCanvas.style.width) || 500;
-    const height = parseFloat(this.mapCanvas.style.height) || 450;
-    const ctx = this.mapCtx;
     const stations = this.state.traverse.stations;
     const activeId = this.state.traverse.activeStationId;
 
-    ctx.clearRect(0, 0, width, height);
-
-    // Background (Basalt Slate)
-    ctx.fillStyle = '#0f141c';
-    ctx.fillRect(0, 0, width, height);
-
-    // Subtle coordinate grid
-    const gridSize = 45 * this.zoom;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.lineWidth = 1;
-    for (let x = (width / 2 + this.panX) % gridSize; x < width; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-    }
-    for (let y = (height / 2 + this.panY) % gridSize; y < height; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
-
-    // North Indicator
-    ctx.fillStyle = 'rgba(217, 119, 6, 0.8)';
-    ctx.font = 'bold 11px monospace';
-    ctx.fillText('▲ N', 14, 24);
-
-    // Traverse connection line
-    if (stations.length > 1) {
-      ctx.strokeStyle = 'rgba(217, 119, 6, 0.7)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 4]);
-      ctx.beginPath();
-      stations.forEach((st, idx) => {
-        const pt = this.projection.project(st.coordinates.lat, st.coordinates.lon, this.zoom, this.panX, this.panY, width, height);
-        if (idx === 0) ctx.moveTo(pt.x, pt.y);
-        else ctx.lineTo(pt.x, pt.y);
-      });
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Plot stations with oriented Strike & Dip symbols
-    stations.forEach((st) => {
-      const pt = this.projection.project(st.coordinates.lat, st.coordinates.lon, this.zoom, this.panX, this.panY, width, height);
-      const isActive = st.id === activeId;
-      const isFlagged = st.status === 'FLAGGED_LOW_CONFIDENCE';
-      const isApproved = st.verified || st.status === 'VERIFIED';
-
-      // Oriented Strike & Dip symbol
-      const strike = (st.extracted as any)?.strike ?? st.azimuth;
-      if (typeof strike === 'number') {
-        const dip = (st.extracted as any)?.dip ?? 45;
-        const color = isFlagged ? '#ef4444' : (isApproved ? '#22c55e' : '#eab308');
-        drawStrikeDipSymbol(ctx, pt.x, pt.y, strike, dip, {
-          color,
-          strikeLength: isActive ? 18 : 14,
-          tickLength: 8,
-          lineWidth: isActive ? 2.5 : 2
-        });
+    this.spatialTracker = new SpatialTrackerCanvas({
+      container,
+      canvasElement: canvas,
+      showUserPosition: false,
+      activeStationId: activeId,
+      onSelectStation: (stationId: string) => {
+        this.state = {
+          ...this.state,
+          traverse: { ...this.state.traverse, activeStationId: stationId }
+        };
+        this.render();
+        toast.info(`Selected station ${stationId}`);
       }
-
-      // Station circle
-      ctx.fillStyle = isFlagged ? '#ef4444' : (isApproved ? '#16a34a' : '#d97706');
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, isActive ? 7 : 5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Outer ring
-      ctx.strokeStyle = isActive ? '#38bdf8' : '#fff';
-      ctx.lineWidth = isActive ? 2.5 : 1.5;
-      ctx.stroke();
-
-      // Station Label
-      ctx.fillStyle = isActive ? '#38bdf8' : '#f8fafc';
-      ctx.font = isActive ? 'bold 12px monospace' : '11px monospace';
-      ctx.fillText(st.id, pt.x + 10, pt.y + 4);
     });
+
+    const activeStation = stations.find((s) => s.id === activeId) || stations[0];
+    const centerCoords = activeStation
+      ? activeStation.coordinates
+      : { lat: -26.2041, lon: 28.0473 };
+
+    this.spatialTracker.updateData(
+      stations,
+      centerCoords,
+      0,
+      activeId
+    );
   }
 
   private attachEventListeners(): void {
@@ -511,42 +439,101 @@ export class OfficeWorkbench {
       });
     });
 
-    // Map tools
+    // Map toolbar tools
     document.getElementById('btnMapZoomIn')?.addEventListener('click', () => {
-      this.zoom = Math.min(this.zoom * 1.3, 5.0);
-      this.drawMap();
+      this.spatialTracker?.zoomIn();
     });
     document.getElementById('btnMapZoomOut')?.addEventListener('click', () => {
-      this.zoom = Math.max(this.zoom / 1.3, 0.3);
-      this.drawMap();
+      this.spatialTracker?.zoomOut();
     });
     document.getElementById('btnMapRecenter')?.addEventListener('click', () => {
-      this.panX = 0;
-      this.panY = 0;
-      this.zoom = 1.0;
-      this.drawMap();
+      this.spatialTracker?.recenter();
+      toast.info('GIS map re-centered to traverse origin');
     });
 
-    // Map click hit testing
-    this.mapCanvas?.addEventListener('click', (e) => {
-      const rect = this.mapCanvas!.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
-      const width = parseFloat(this.mapCanvas!.style.width) || 500;
-      const height = parseFloat(this.mapCanvas!.style.height) || 450;
-
-      for (const st of this.state.traverse.stations) {
-        const pt = this.projection.project(st.coordinates.lat, st.coordinates.lon, this.zoom, this.panX, this.panY, width, height);
-        if (Math.hypot(pt.x - clickX, pt.y - clickY) <= 18) {
-          this.state = {
-            ...this.state,
-            traverse: { ...this.state.traverse, activeStationId: st.id }
-          };
-          this.render();
-          toast.info(`Selected station ${st.id}`);
-          break;
+    // Load sample traverse handler
+    document.getElementById('btnLoadSampleTraverse')?.addEventListener('click', async () => {
+      const sampleStations: Station[] = [
+        {
+          id: 'ST-001',
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          coordinates: { lat: -26.2041, lon: 28.0473, elevation: 1750 },
+          azimuth: 45,
+          photos: [],
+          audio: {
+            durationSec: 18,
+            rawSpeechText: 'Quartz-pebble conglomerate with visible chalcopyrite blebs, strike 045 dip 60 SE, sample SMP-101.'
+          },
+          extracted: {
+            lithology: 'Quartz-pebble conglomerate',
+            mineralization: 'Chalcopyrite blebs',
+            strike: 45,
+            dip: 60,
+            dipDirection: 'SE',
+            sampleId: 'SMP-101'
+          },
+          status: 'EXTRACTED',
+          verified: false
+        },
+        {
+          id: 'ST-002',
+          timestamp: new Date(Date.now() - 1800000).toISOString(),
+          coordinates: { lat: -26.2062, lon: 28.0495, elevation: 1735 },
+          azimuth: 55,
+          photos: [],
+          audio: {
+            durationSec: 22,
+            rawSpeechText: 'Pyritic quartzite horizon, strike 055 dip 65 SE, auriferous pyrite banding, sample SMP-102.'
+          },
+          extracted: {
+            lithology: 'Pyritic quartzite',
+            mineralization: 'Fine auriferous pyrite banding',
+            strike: 55,
+            dip: 65,
+            dipDirection: 'SE',
+            sampleId: 'SMP-102'
+          },
+          status: 'FLAGGED_LOW_CONFIDENCE',
+          confidence: 0.65,
+          verified: false
+        },
+        {
+          id: 'ST-003',
+          timestamp: new Date().toISOString(),
+          coordinates: { lat: -26.2085, lon: 28.0520, elevation: 1720 },
+          azimuth: 60,
+          photos: [],
+          audio: {
+            durationSec: 15,
+            rawSpeechText: 'Diabase dike cross-cutting sedimentary strata with hornfels contact, strike 060 dip 70 SE.'
+          },
+          extracted: {
+            lithology: 'Diabase dike contact',
+            mineralization: 'Disseminated pyrrhotite',
+            strike: 60,
+            dip: 70,
+            dipDirection: 'SE',
+            sampleId: 'SMP-103'
+          },
+          status: 'VERIFIED',
+          verified: true
         }
+      ];
+
+      for (const st of sampleStations) {
+        await saveStationToDb(st);
       }
+
+      this.state = {
+        ...this.state,
+        traverse: {
+          activeStationId: 'ST-001',
+          stations: sampleStations
+        }
+      };
+      this.onStateChange(this.state);
+      this.render();
+      toast.success('Loaded sample 3-station traverse with strike/dip measurements!');
     });
 
     // Real HTML5 Audio Player & Waveform Sync

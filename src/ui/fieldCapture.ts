@@ -58,8 +58,21 @@ export class FieldCaptureApp {
         };
       }
 
-      // Pre-fetch user GPS fix
-      this.userCoordinates = await getCurrentCoordinates();
+      // Default initial coordinates so map renders instantly without 8-second GPS delay
+      this.userCoordinates = { lat: -26.2041, lon: 28.0473, elevation: 1750, accuracy: 10 };
+
+      // Acquire high-precision GPS asynchronously in background
+      getCurrentCoordinates().then((coords) => {
+        this.userCoordinates = coords;
+        if (this.spatialTracker) {
+          this.spatialTracker.updateData(
+            this.state.traverse.stations,
+            coords,
+            compassService.getHeading(),
+            this.state.traverse.activeStationId
+          );
+        }
+      }).catch(() => {});
 
       // Subscribe to network connectivity
       networkMonitor.subscribe((isOnline) => {
@@ -88,8 +101,14 @@ export class FieldCaptureApp {
     const canvasMount = document.getElementById('spatialCanvasContainer');
     if (!canvasMount) return;
 
+    if (this.spatialTracker) {
+      this.spatialTracker.destroy();
+    }
+
     this.spatialTracker = new SpatialTrackerCanvas({
       container: canvasMount,
+      showUserPosition: true,
+      activeStationId: this.state.traverse.activeStationId,
       onSelectStation: (stationId: string) => {
         this.state = {
           ...this.state,
@@ -104,7 +123,8 @@ export class FieldCaptureApp {
     this.spatialTracker.updateData(
       this.state.traverse.stations,
       this.userCoordinates,
-      heading
+      heading,
+      this.state.traverse.activeStationId
     );
   }
 
